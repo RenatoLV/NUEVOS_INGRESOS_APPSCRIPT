@@ -1,0 +1,157 @@
+<div class="modal fade" id="confirmarGuardadoModal" tabindex="-1" role="dialog">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Confirmar Acción</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <p>¿Está seguro de que desea guardar este registro?</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" id="btn-confirmar-guardado">Aceptar y Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="traspasoModal" tabindex="-1" role="dialog" aria-labelledby="traspasoModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="traspasoModalLabel">Gestionar Traspaso</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body" style="min-height: 300px;">
+        <p>A continuación se listan los registros listos para ser movidos a su nómina.</p>
+        <div id="loader-traspaso" class="loader" style="display: none; margin: 40px auto;"></div>
+        <div id="lista-traspaso-container"></div>
+        <div id="traspaso-status-message" class="mt-2 text-right"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" id="btn-ejecutar-traspaso">
+          <i class="fas fa-check"></i> Traspasar Seleccionados </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="prestadoresModal" tabindex="-1" role="dialog" aria-labelledby="prestadoresModalLabel" aria-hidden="true">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="prestadoresModalLabel">Seleccionar Tipo de Prestador de Servicio</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <p>Por favor, especifique el tipo de contrato para Prestadores de Servicio:</p>
+        <div class="form-check">
+          <input class="form-check-input" type="radio" name="tipoPrestador" id="prestador-banda" value="PRESTADORES DE SERVICIO - BANDA LOS MENAS">
+          <label class="form-check-label" for="prestador-banda">BANDA LOS MENAS</label>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input" type="radio" name="tipoPrestador" id="prestador-sin-marcaje" value="PRESTADORES DE SERVICIO - SIN MARCAJE">
+          <label class="form-check-label" for="prestador-sin-marcaje">SIN MARCAJE</label>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input" type="radio" name="tipoPrestador" id="prestador-campeones" value="PRESTADORES DE SERVICIO - CAMPEONES PARA COQUIMBO">
+          <label class="form-check-label" for="prestador-campeones">CAMPEONES PARA COQUIMBO</label>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input" type="radio" name="tipoPrestador" id="prestador-generico" value="PRESTADORES DE SERVICIO" checked>
+          <label class="form-check-label" for="prestador-generico">Genérico (Prestadores de Servicio)</label>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" id="btn-confirmar-prestador">Aceptar y Continuar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="generarDocumentosModal" tabindex="-1" role="dialog" aria-labelledby="generarDocumentosModalLabel" aria-hidden="true">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="generarDocumentosModalLabel">Generar Documentos</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <p>Seleccione los documentos que desea generar:</p>
+        <div id="documentos-checkbox-container"></div>
+        <div id="loader-generacion" class="loader" style="margin-top: 20px;"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" id="btn-ejecutar-generacion">
+          <i class="fas fa-cogs"></i> Generar Seleccionados </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="exitoModal" tabindex="-1" role="dialog">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">✅ ¡Éxito!</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <p id="exito-modal-mensaje"></p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cerrar</button>
+        <a href="#" id="exito-modal-link" target="_blank" class="btn btn-primary">Abrir Carpeta</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="detallesModal" tabindex="-1" role="dialog">
+  <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Detalles del Ingreso</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body" id="detalles-modal-body"></div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cerrar</button>
+        <a href="#" id="detalles-modal-carpeta-btn" target="_blank" class="btn btn-success" style="display: none;">
+          <i class="fab fa-google-drive"></i> Abrir Carpeta </a>
+        <button type="button" class="btn btn-primary" id="detalles-modal-editar-btn">
+          <i class="fas fa-edit"></i> Editar Registro </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="cargaTraspasoModal" tabindex="-1" role="dialog" aria-labelledby="cargaTraspasoModalLabel" aria-hidden="true" data-backdrop="static" data-keyboard="false">
+  <div class="modal-dialog modal-dialog-centered" role="document">
+    <div class="modal-content">
+      <div class="modal-body text-center">
+        <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;">
+          <span class="sr-only">Procesando...</span>
+        </div>
+        <h5 class="modal-title mb-2" id="cargaTraspasoModalLabel">Procesando Traspasos</h5>
+        <p id="cargaTraspasoProgreso" class="text-muted">Iniciando...</p>
+      </div>
+    </div>
+  </div>
+</div>

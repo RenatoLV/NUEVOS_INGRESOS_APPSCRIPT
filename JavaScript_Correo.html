@@ -1,0 +1,478 @@
+<script>
+/**
+ * MÓDULO DE CORREOS DE BIENVENIDA (Versión Final con Buscador de Jefaturas por Nombre)
+ */
+(function() {
+    const state = {
+        dataOriginal: [],
+        dataFiltrada: [],
+        tabActual: 'con', 
+        seleccionados: new Set(),
+        modoEnvio: 'individual', 
+        idParaPreview: null,
+        ccList: [] 
+    };
+
+    // Helper seguro para asignar texto
+    const setText = (id, text) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = text;
+    };
+    
+    // Helper seguro para HTML
+    const setHtml = (id, html) => {
+        const el = document.getElementById(id);
+        if (el) el.innerHTML = html;
+    };
+
+    const methodsCorreo = {
+        
+        cargarVista: function() {
+            App.methods.bloquearPantalla('Actualizando listado de correos...');
+            
+            // 1. Cargar CCs Globales
+            google.script.run.withSuccessHandler(ccs => {
+                state.ccList = ccs;
+                methodsCorreo.renderizarCCList();
+            }).obtenerListaCC();
+
+            // 2. Cargar Empleados
+            google.script.run
+                .withSuccessHandler(data => {
+                    App.methods.desbloquearPantalla();
+                    if(data.error) { alert(data.message); return; }
+                    
+                    state.dataOriginal = data;
+                    const calidades = [...new Set(data.map(d => d.calidad))].sort();
+                    const select = document.getElementById('filtro-correo-calidad');
+                    if(select) {
+                        select.innerHTML = '<option value="">Todas las calidades</option>';
+                        calidades.forEach(c => {
+                            const opt = document.createElement('option');
+                            opt.value = c; opt.text = c;
+                            select.appendChild(opt);
+                        });
+                    }
+                    methodsCorreo.aplicarFiltros();
+                })
+                .withFailureHandler(App.handlers.onFailure)
+                .obtenerEmpleadosParaBienvenida();
+        },
+
+        renderizarCCList: function() {
+            const container = document.getElementById('lista-cc-container');
+            if(!container) return;
+            container.innerHTML = '';
+            state.ccList.forEach((cc, index) => {
+                const div = document.createElement('div');
+                div.className = "flex items-start gap-2 p-1 hover:bg-gray-50 rounded";
+                div.innerHTML = `
+                    <input type="checkbox" id="cc-${index}" value="${cc.email}" class="check-cc mt-1 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                    <label for="cc-${index}" class="text-xs text-gray-700 cursor-pointer select-none w-full">
+                        <span class="font-bold text-slate-800">${cc.nombre}</span><br>
+                        <span class="text-slate-500">${cc.email}</span>
+                    </label>
+                `;
+                container.appendChild(div);
+            });
+        },
+
+        toggleAllCC: function() {
+            const checks = document.querySelectorAll('.check-cc');
+            if(checks.length === 0) return;
+            const allChecked = Array.from(checks).every(c => c.checked);
+            checks.forEach(c => c.checked = !allChecked);
+        },
+
+        aplicarFiltros: function() {
+            const elTexto = document.getElementById('filtro-correo-texto');
+            const elCalidad = document.getElementById('filtro-correo-calidad');
+            const elFecha = document.getElementById('filtro-correo-fecha');
+
+            if (!elTexto) return; 
+
+            const texto = elTexto.value.toLowerCase();
+            const calidad = elCalidad.value;
+            const fecha = elFecha.value;
+
+            state.dataFiltrada = state.dataOriginal.filter(item => {
+                const matchTexto = item.nombre.toLowerCase().includes(texto) || item.rut.toLowerCase().includes(texto);
+                const matchCalidad = calidad === "" || item.calidad === calidad;
+                const matchFecha = fecha === "" || item.fechaIngreso === fecha;
+                return matchTexto && matchCalidad && matchFecha;
+            });
+
+            this.renderizarTablas();
+            this.actualizarBadges();
+        },
+
+        renderizarTablas: function() {
+            const tbodyCon = document.getElementById('tbody-con-correo');
+            const tbodySin = document.getElementById('tbody-sin-correo');
+            
+            if(!tbodyCon || !tbodySin) return;
+
+            tbodyCon.innerHTML = '';
+            tbodySin.innerHTML = '';
+            state.seleccionados.clear();
+            this.actualizarContadorUI();
+            
+            const listCon = state.dataFiltrada.filter(i => i.email && i.email.includes('@'));
+            const listSin = state.dataFiltrada.filter(i => !i.email || !i.email.includes('@'));
+
+            // Render CON Email
+            if (listCon.length === 0) {
+                tbodyCon.innerHTML = '<tr><td colspan="7" class="px-6 py-12 text-center text-slate-400 italic">No se encontraron registros pendientes.</td></tr>';
+            } else {
+                listCon.forEach(item => {
+                    const tr = document.createElement('tr');
+                    tr.className = 'hover:bg-blue-50/60 transition-colors border-b border-slate-100 last:border-b-0 cursor-pointer group';
+                    
+                    const tieneOrden = item.urlOrden && item.urlOrden.length > 5;
+                    const iconOrden = tieneOrden 
+                        ? `<a href="${item.urlOrden}" target="_blank" onclick="event.stopPropagation()" class="text-blue-600 bg-blue-100 hover:bg-blue-200 px-2 py-1 rounded text-xs font-bold transition flex justify-center w-8 mx-auto" title="Ver Orden Adjunta"><i class="fas fa-paperclip"></i> Ver</a>`
+                        : `<span class="text-slate-300 text-xs">-</span>`;
+
+                    tr.innerHTML = `
+                        <td class="px-6 py-4 text-center">
+                            <input type="checkbox" class="check-item checkbox-custom w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 transition-all cursor-pointer" value="${item.id}">
+                        </td>
+                        <td class="px-6 py-4">
+                            <div class="text-sm font-bold text-slate-800 group-hover:text-blue-700 transition-colors">${item.nombre}</div>
+                        </td>
+                        <td class="px-6 py-4">
+                            <div class="text-sm text-slate-600 font-mono tracking-tight">${item.rut}</div>
+                            <div class="text-[10px] text-slate-400 uppercase font-bold tracking-wider mt-0.5">ID: ${item.id}</div>
+                        </td>
+                        <td class="px-6 py-4">
+                            <span class="px-2.5 py-1 inline-flex text-[10px] leading-4 font-bold uppercase tracking-wide rounded-full bg-slate-100 text-slate-600 border border-slate-200 whitespace-nowrap overflow-hidden text-ellipsis max-w-[150px]">${item.calidad}</span>
+                            <div class="text-xs text-slate-500 mt-1.5 flex items-center gap-1.5"><i class="far fa-calendar text-slate-400"></i> ${item.fechaIngreso}</div>
+                        </td>
+                        <td class="px-6 py-4 text-sm text-slate-500 break-all">${item.email}</td>
+                        <td class="px-6 py-4 text-center">${iconOrden}</td>
+                        <td class="px-6 py-4 text-right">
+                            <button onclick="event.stopPropagation(); App.methods.correo.abrirPreviewIndividual(${item.id})" class="text-slate-400 hover:text-blue-600 hover:bg-blue-100 p-2 rounded-full transition-all" title="Ver Vista Previa">
+                                <i class="fas fa-eye text-lg"></i>
+                            </button>
+                        </td>
+                    `;
+                    tbodyCon.appendChild(tr);
+                    
+                    tr.addEventListener('click', (e) => {
+                        if(['BUTTON', 'I', 'A', 'INPUT'].includes(e.target.tagName)) return;
+                        const ck = tr.querySelector('.check-item');
+                        if(ck) {
+                            ck.checked = !ck.checked;
+                            methodsCorreo.toggleSeleccion(item.id, ck.checked);
+                        }
+                    });
+                    
+                    const ckBox = tr.querySelector('.check-item');
+                    if(ckBox) ckBox.addEventListener('change', (e) => methodsCorreo.toggleSeleccion(item.id, e.target.checked));
+                });
+            }
+
+            // Render SIN Email
+            if (listSin.length === 0) {
+                tbodySin.innerHTML = '<tr><td colspan="5" class="px-6 py-12 text-center text-slate-400 italic">Todo al día.</td></tr>';
+            } else {
+                listSin.forEach(item => {
+                    const tr = document.createElement('tr');
+                    tr.className = 'border-b border-slate-50 hover:bg-slate-50';
+                    const iconOrden = (item.urlOrden && item.urlOrden.length > 5) ? `<i class="fas fa-paperclip text-blue-500"></i>` : `<span class="text-slate-200">-</span>`;
+                    tr.innerHTML = `
+                        <td class="px-6 py-4 text-sm font-semibold text-slate-700">${item.nombre}</td>
+                        <td class="px-6 py-4 text-sm text-slate-500 font-mono">${item.rut}</td>
+                        <td class="px-6 py-4 text-sm text-slate-500">${item.calidad}</td>
+                        <td class="px-6 py-4 text-center">${iconOrden}</td>
+                        <td class="px-6 py-4"><span class="px-3 py-1 inline-flex text-xs font-bold leading-4 rounded-full bg-red-50 text-red-600 border border-red-100">Falta Email</span></td>
+                    `;
+                    tbodySin.appendChild(tr);
+                });
+            }
+            
+            const checkAll = document.getElementById('check-todos-con');
+            if(checkAll) checkAll.checked = false;
+        },
+
+        toggleSeleccion: function(id, checked) {
+            if (checked) state.seleccionados.add(String(id));
+            else state.seleccionados.delete(String(id));
+            this.actualizarContadorUI();
+        },
+
+        actualizarContadorUI: function() {
+            const count = state.seleccionados.size;
+            setText('contador-seleccionados-con', count);
+            const btn = document.getElementById('btn-enviar-masivo');
+            if (btn) {
+                btn.disabled = count === 0;
+                if (count > 0) btn.classList.remove('opacity-50', 'cursor-not-allowed', 'shadow-none');
+                else btn.classList.add('opacity-50', 'cursor-not-allowed', 'shadow-none');
+            }
+        },
+
+        actualizarBadges: function() {
+            const totalCon = state.dataOriginal.filter(i => i.email && i.email.includes('@')).length;
+            const totalSin = state.dataOriginal.filter(i => !i.email || !i.email.includes('@')).length;
+            setText('badge-con-correo', totalCon);
+            setText('badge-sin-correo', totalSin);
+        },
+
+        cambiarTab: function(tab) {
+            state.tabActual = tab;
+            const btnCon = document.getElementById('tab-con-correo');
+            const btnSin = document.getElementById('tab-sin-correo');
+            const panelCon = document.getElementById('panel-con-correo');
+            const panelSin = document.getElementById('panel-sin-correo');
+
+            if (!btnCon) return;
+
+            if (tab === 'con') {
+                btnCon.className = "flex items-center gap-2 px-5 py-2.5 text-sm font-bold rounded-lg transition-all shadow-sm bg-white text-blue-700 ring-1 ring-black/5";
+                btnSin.className = "flex items-center gap-2 px-5 py-2.5 text-sm font-bold rounded-lg text-slate-500 hover:text-slate-700 hover:bg-white/50 transition-all";
+                panelCon.style.display = 'block';
+                panelSin.style.display = 'none';
+            } else {
+                btnSin.className = "flex items-center gap-2 px-5 py-2.5 text-sm font-bold rounded-lg transition-all shadow-sm bg-white text-red-600 ring-1 ring-black/5";
+                btnCon.className = "flex items-center gap-2 px-5 py-2.5 text-sm font-bold rounded-lg text-slate-500 hover:text-slate-700 hover:bg-white/50 transition-all";
+                panelCon.style.display = 'none';
+                panelSin.style.display = 'block';
+            }
+        },
+
+        // --- PREVISUALIZACIÓN Y CONFIGURACIÓN DINÁMICA ---
+
+        abrirPreviewIndividual: function(id) {
+            state.modoEnvio = 'individual';
+            state.idParaPreview = id;
+            state.seleccionados.clear();
+            state.seleccionados.add(String(id));
+            this.cargarDataPreview(id);
+        },
+
+        confirmarEnvioMasivo: function() {
+            const ids = Array.from(state.seleccionados);
+            if (ids.length === 0) return;
+            state.modoEnvio = 'masivo';
+            state.idParaPreview = ids[0];
+            this.cargarDataPreview(ids[0]);
+        },
+
+        cargarDataPreview: function(id) {
+            const modal = document.getElementById('modal-preview-correo');
+            if (!modal) return;
+            
+            modal.classList.remove('hidden');
+            const wrapper = document.getElementById('preview-content-wrapper');
+            const loader = document.getElementById('preview-loading');
+            const infoMasivo = document.getElementById('preview-info-masivo');
+            
+            if(wrapper) wrapper.classList.add('hidden');
+            if(loader) loader.classList.remove('hidden');
+            
+            // 1. Renderizar Inputs de Jefaturas
+            this.renderizarInputsJefaturas();
+
+            // 2. Obtener formato
+            const radios = document.getElementsByName('formatoCorreo');
+            let tipoFormato = 'A';
+            if (radios.length > 0) {
+                for(let r of radios) if(r.checked) tipoFormato = r.value;
+            }
+            
+            // UI Masivo
+            if(state.modoEnvio === 'masivo' && infoMasivo) {
+                infoMasivo.classList.remove('hidden');
+                setText('preview-count-masivo', state.seleccionados.size);
+            } else if(infoMasivo) {
+                infoMasivo.classList.add('hidden');
+            }
+            
+            const btnConfirmar = document.getElementById('btn-confirmar-envio-modal');
+            if(btnConfirmar) {
+                 btnConfirmar.innerHTML = state.modoEnvio === 'masivo' 
+                    ? `<i class="fas fa-paper-plane mr-2"></i> Enviar a ${state.seleccionados.size} personas`
+                    : `<i class="fas fa-paper-plane mr-2"></i> Enviar este correo`;
+            }
+
+            // 3. Previsualizar HTML
+            google.script.run
+                .withSuccessHandler(res => {
+                    if(loader) loader.classList.add('hidden');
+                    if(wrapper) wrapper.classList.remove('hidden');
+                    
+                    if (res.success) {
+                        setHtml('preview-contenido', res.data.cuerpoHtml);
+                    } else {
+                        setHtml('preview-contenido', `<div class="text-red-500 p-6 text-center">Error: ${res.message}</div>`);
+                    }
+                })
+                .withFailureHandler(err => {
+                    if(loader) loader.classList.add('hidden');
+                    setHtml('preview-contenido', `<div class="text-red-500 p-6 text-center">Error de red: ${err.message}</div>`);
+                })
+                .previsualizarCorreo(id, tipoFormato);
+        },
+
+        // --- RENDERIZADO DE JEFATURAS CON SELECT2 ---
+        renderizarInputsJefaturas: function() {
+            const containerMain = document.getElementById('seccion-jefaturas-especificas');
+            const listaContainer = document.getElementById('lista-jefaturas-container');
+            
+            if (!containerMain || !listaContainer) return;
+
+            containerMain.classList.remove('hidden');
+            listaContainer.innerHTML = '';
+
+            const ids = Array.from(state.seleccionados);
+
+            ids.forEach(id => {
+                const empleado = state.dataOriginal.find(e => String(e.id) === String(id));
+                const nombre = empleado ? empleado.nombre : `Funcionario ID ${id}`;
+
+                const div = document.createElement('div');
+                div.className = "bg-white border border-gray-200 rounded p-3 shadow-sm";
+                
+                div.innerHTML = `
+                    <p class="text-xs font-bold text-gray-700 mb-1 truncate" title="${nombre}">
+                        <i class="fas fa-user text-gray-400 mr-1"></i> ${nombre}
+                    </p>
+                    <select class="form-control select2-jefaturas" multiple="multiple" id="extra-cc-${id}" style="width: 100%"></select>
+                    <p class="text-[10px] text-gray-400 mt-1">Busque por nombre o correo.</p>
+                `;
+                listaContainer.appendChild(div);
+
+                // Inicializamos Select2
+                $(`#extra-cc-${id}`).select2({
+                    dropdownParent: $('#modal-preview-correo'),
+                    data: App.state.directorioJefaturas || [],
+                    tags: true, // Permitir escribir nuevos
+                    tokenSeparators: [','],
+                    placeholder: "Buscar jefe (Nombre o Correo)...",
+                    language: {
+                        noResults: function() { return "No encontrado. Escriba el correo completo para agregarlo."; }
+                    },
+                    // Template para mostrar "Nombre <correo>" en la lista
+                    templateResult: function(data) {
+                        if (!data.id) return data.text;
+                        if (data.newOption) return $('<span><i class="fas fa-plus-circle text-green-500"></i> Agregar: ' + data.text + '</span>');
+                        
+                        let textoMostrar = data.text;
+                        let nombre = "";
+                        let email = "";
+                        
+                        if (textoMostrar.includes('<')) {
+                            const partes = textoMostrar.split('<');
+                            nombre = partes[0].trim();
+                            email = partes[1].replace('>', '').trim();
+                        } else {
+                            email = textoMostrar;
+                        }
+
+                        return $(`
+                            <div class="flex flex-col border-b border-gray-100 pb-1 mb-1 last:border-0 last:pb-0 last:mb-0">
+                                <span class="font-bold text-slate-700 text-xs">${nombre || 'Sin Nombre'}</span>
+                                <span class="text-slate-500 text-[10px]">${email}</span>
+                            </div>
+                        `);
+                    },
+                    // Template para lo que se ve seleccionado (Solo nombre o correo)
+                    templateSelection: function(data) {
+                        if (data.id && data.text.includes('<')) {
+                             return data.text.split('<')[0].trim(); 
+                        }
+                        return data.text;
+                    }
+                });
+            });
+        },
+
+        actualizarVistaPrevia: function() {
+            const modal = document.getElementById('modal-preview-correo');
+            if(state.idParaPreview && modal && !modal.classList.contains('hidden')) {
+                const loader = document.getElementById('preview-loading');
+                const radios = document.getElementsByName('formatoCorreo');
+                let tipoFormato = 'A';
+                for(let r of radios) if(r.checked) tipoFormato = r.value;
+
+                if(loader) loader.classList.remove('hidden');
+
+                google.script.run.withSuccessHandler(res => {
+                    if(loader) loader.classList.add('hidden');
+                    if (res.success) {
+                        setHtml('preview-contenido', res.data.cuerpoHtml);
+                    }
+                }).previsualizarCorreo(state.idParaPreview, tipoFormato);
+            }
+        },
+
+        cerrarPreview: function() {
+            const modal = document.getElementById('modal-preview-correo');
+            if(modal) modal.classList.add('hidden');
+        },
+
+        ejecutarEnvioReal: function() {
+            const radios = document.getElementsByName('formatoCorreo');
+            let tipoFormato = 'A';
+            for(let r of radios) if(r.checked) tipoFormato = r.value;
+            
+            const globalCcs = [];
+            document.querySelectorAll('.check-cc:checked').forEach(c => globalCcs.push(c.value));
+
+            const listaEnvios = [];
+            const ids = Array.from(state.seleccionados);
+
+            ids.forEach(id => {
+                const valoresSelect2 = $(`#extra-cc-${id}`).val();
+                const extraCc = (valoresSelect2 && valoresSelect2.length > 0) ? valoresSelect2.join(',') : '';
+                
+                listaEnvios.push({
+                    id: id,
+                    extraCc: extraCc
+                });
+            });
+
+            if (listaEnvios.length === 0) return;
+
+            this.cerrarPreview();
+            App.methods.bloquearPantalla(`Enviando ${listaEnvios.length} correo(s) personalizado(s)...`);
+            
+            google.script.run
+                .withSuccessHandler(res => {
+                    App.methods.desbloquearPantalla();
+                    if(res.success) {
+                        alert(res.message);
+                        methodsCorreo.cargarVista(); 
+                    } else {
+                        alert("Error: " + res.message);
+                    }
+                })
+                .withFailureHandler(err => {
+                    App.methods.desbloquearPantalla();
+                    alert("Error crítico: " + err.message);
+                })
+                .enviarCorreosDeBienvenida(listaEnvios, globalCcs, tipoFormato);
+        }
+    };
+
+    window.App_Correo_Temp = methodsCorreo;
+
+    const checkAll = document.getElementById('check-todos-con');
+    if(checkAll) {
+        checkAll.addEventListener('change', function() {
+            const checks = document.querySelectorAll('#tbody-con-correo .check-item');
+            checks.forEach(ck => {
+                ck.checked = this.checked;
+                methodsCorreo.toggleSeleccion(ck.value, this.checked);
+            });
+        });
+    }
+
+    ['filtro-correo-texto', 'filtro-correo-calidad', 'filtro-correo-fecha'].forEach(id => {
+        const el = document.getElementById(id);
+        if(el) el.addEventListener('input', () => methodsCorreo.aplicarFiltros());
+    });
+
+})();
+</script>

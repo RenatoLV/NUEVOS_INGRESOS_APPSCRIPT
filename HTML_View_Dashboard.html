@@ -1,0 +1,89 @@
+<div id="vista-dashboard" class="vista-contenido">
+  <div class="d-flex justify-content-between align-items-center">
+    <h2>
+      <i class="fas fa-chart-pie"></i> Dashboard
+    </h2>
+    <div class="d-flex align-items-center">
+        <small id="dashboard-fecha-inicio" class="text-muted mr-3"></small>
+        <!-- BOTÓN DE REFRESH MANUAL -->
+        <button class="btn btn-sm btn-outline-primary" onclick="App.methods.cargarDashboard(true)" title="Actualizar datos del Dashboard">
+            <i class="fas fa-sync-alt"></i> Actualizar
+        </button>
+    </div>
+  </div>
+
+  <div class="row mt-4 justify-content-center">
+    <div class="col-lg-2 col-md-4 mb-3">
+      <div class="card text-white bg-primary">
+        <div class="card-body text-center">
+          <h5 class="card-title">Total Ingresos</h5>
+          <p class="card-text h1" id="stat-total-ingresos">...</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-2 col-md-4 mb-3">
+      <div id="card-incompletos" class="card text-white bg-warning card-clickable">
+        <div class="card-body text-center">
+          <h5 class="card-title">Incompletos</h5>
+          <p class="card-text h1" id="stat-incompletos">...</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-2 col-md-4 mb-3">
+      <div id="card-pendientes-contrato" class="card text-white bg-info card-clickable">
+        <div class="card-body text-center">
+          <h5 class="card-title">P/ Contratos</h5>
+          <p class="card-text h1" id="stat-pendientes-contrato">...</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-2 col-md-4 mb-3">
+      <div id="card-pendientes-nomina" class="card text-white bg-success card-clickable">
+        <div class="card-body text-center">
+          <h5 class="card-title">P/ Nómina</h5>
+          <p class="card-text h1" id="stat-pendientes-nomina">...</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-2 col-md-4 mb-3">
+      <div class="card text-white bg-secondary">
+        <div class="card-body text-center">
+          <h5 class="card-title">Cancelados</h5>
+          <p class="card-text h1" id="stat-cancelados">...</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="row mt-5">
+    <div class="col-lg-6">
+      <h4>Ingresos por Calidad Contractual</h4>
+      <div id="grafico-calidad-container" class="bg-white p-3 rounded shadow-sm"></div>
+      <div id="subcategoria-filtros-container" class="mt-2 p-2 bg-light rounded shadow-sm" style="display: none;">
+        <small class="d-block mb-1 text-muted">Filtrar Prestadores por:</small>
+        <div id="subcategoria-checkboxes"></div>
+      </div>
+    </div>
+    <div class="col-lg-6">
+      <h4>Ingresos por Mes</h4>
+      <div id="ingresos-mes-container" class="bg-white p-3 rounded shadow-sm"></div>
+    </div>
+  </div>
+  <div id="filtro-estado-ingreso-container" class="mt-4 mb-2 text-center" style="display: none;">
+    <small class="mr-3 text-muted">Filtrar por estado:</small>
+    <div class="form-check form-check-inline">
+      <input class="form-check-input filtro-estado-radio" type="radio" name="filtroEstadoIngreso" id="estadoTodos" value="TODOS" checked>
+      <label class="form-check-label small" for="estadoTodos">Todos</label>
+    </div>
+    <div class="form-check form-check-inline">
+      <input class="form-check-input filtro-estado-radio" type="radio" name="filtroEstadoIngreso" id="estadoNuevo" value="NUEVO INGRESO">
+      <label class="form-check-label small" for="estadoNuevo">Nuevo Ingreso</label>
+    </div>
+    <div class="form-check form-check-inline">
+      <input class="form-check-input filtro-estado-radio" type="radio" name="filtroEstadoIngreso" id="estadoCambio" value="CAMBIO DE MODALIDAD">
+      <label class="form-check-label small" for="estadoCambio">Cambio Modalidad</label>
+    </div>
+    <button type="button" id="btn-exportar-csv" class="btn btn-sm btn-outline-success ml-3">
+      <i class="fas fa-file-csv"></i> Exportar a CSV </button>
+  </div>
+  <div id="ultimos-ingresos-container" class="mt-3"></div>
+</div>

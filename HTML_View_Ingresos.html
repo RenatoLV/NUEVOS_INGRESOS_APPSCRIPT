@@ -1,0 +1,876 @@
+<div id="vista-ingresos" class="vista-contenido">
+  <div class="card card-flat">
+    <div class="card-body" id="main-card-body">
+      
+      <!-- Loader Inicial -->
+      <div id="inicial-loader-section" class="text-center" style="margin-top: 150px; display: none;">
+        <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status">
+          <span class="sr-only">Cargando...</span>
+        </div>
+        <p class="mt-3">Cargando datos de la aplicación...</p>
+      </div>
+
+      <!-- Sección Buscador -->
+      <div id="buscador-section" style="display: none;">
+        <div class="form-row align-items-end">
+          <div class="col-md-8">
+            <label for="rut-busqueda">
+              <strong>Buscar o Crear Registro</strong>
+            </label>
+            <input type="text" class="form-control" id="rut-busqueda" placeholder="Ingresar RUT para buscar..." maxlength="12">
+            <div id="rut-busqueda-error" class="text-danger small mt-1"></div>
+          </div>
+          <div class="col-md-2">
+            <button id="btn-buscar" class="btn btn-primary btn-block">
+              <i class="fas fa-search"></i> Buscar </button>
+          </div>
+          <div class="col-md-2">
+            <button id="btn-crear-nuevo" class="btn btn-secondary btn-block">
+              <i class="fas fa-plus"></i> Crear Nuevo </button>
+          </div>
+        </div>
+        <div id="loader-busqueda" class="loader"></div>
+        <div id="resultados-busqueda"></div>
+      </div>
+
+      <!-- Sección Selección Inicial -->
+      <div id="inicial-section" style="display: none;">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h5 class="section-title mb-0" style="border-bottom: none;">Nuevo Registro</h5>
+          <button type="button" id="btn-volver-a-buscar" class="btn btn-sm btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Volver a Buscar </button>
+        </div>
+        <div class="form-group">
+          <label for="calidad-contractual-inicial">1. Seleccione Calidad Contractual para comenzar</label>
+          <select class="form-control" id="calidad-contractual-inicial">
+            <option value="">-- SELECCIONAR --</option>
+            <option>HONORARIOS SUMA ALZADA</option>
+            <option>PLANTA</option>
+            <option>PLANTA SUPLENCIA</option>
+            <option>CONTRATA</option>
+            <option>CODIGO DEL TRABAJO</option>
+            <option>PLANTA CEMENTERIO</option>
+            <option>PRESTADORES DE SERVICIO</option>
+            <option>ADMINISTRACION DE FONDOS</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Sección Formulario Completo -->
+      <div id="main-form-section" style="display: none;"> 
+        <div id="checklist-container" class="mb-4"></div>
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h5 class="section-title mb-0" id="titulo-completar-informacion" style="border-bottom: none;">Completar Información</h5>
+          <div>
+            <button type="button" id="btn-iniciar-cambio-calidad" class="btn btn-sm btn-warning mr-2" style="display: none;">
+              <i class="fas fa-random"></i> Cambiar Calidad Contractual </button>
+            <button type="button" id="btn-volver-a-calidad" class="btn btn-sm btn-outline-secondary">
+              <i class="fas fa-arrow-left"></i> Volver a Selección </button>
+          </div>
+        </div>
+        <form id="registro-form">
+          <input type="hidden" id="ID" name="ID">
+          <input type="hidden" id="CALIDAD CONTRACTUAL" name="CALIDAD CONTRACTUAL">
+          <input type="hidden" id="URL ORDEN DE SERVICIO" name="URL ORDEN DE SERVICIO">
+          <input type="hidden" id="ESTADO DE TRASPASO A NOMINA" name="ESTADO DE TRASPASO A NOMINA">
+          
+          <div class="section-wrapper">
+            <h5 class="section-title color-azul">Datos de Registro</h5>
+            <div class="form-row">
+              <div class="form-group col-md-3">
+                <label for="CODIGO">Código</label>
+                <input type="text" class="form-control" id="CODIGO" name="CODIGO">
+              </div>
+              <div class="form-group col-md-3">
+                <label for="FECHA DE REGISTRO">Fecha de Registro</label>
+                <input type="date" class="form-control" id="FECHA DE REGISTRO" name="FECHA DE REGISTRO">
+              </div>
+              <div class="form-group col-md-3">
+                <label for="MES">Mes</label>
+                <input type="text" class="form-control" id="MES" name="MES" readonly>
+              </div>
+              <div class="form-group col-md-3">
+                <label for="ESTADO DE INFORMACION">Estado de Información</label>
+                <input type="text" class="form-control" id="ESTADO DE INFORMACION" name="ESTADO DE INFORMACION" readonly>
+              </div>
+            </div>
+          </div>
+
+          <div class="section-wrapper">
+            <h5 class="section-title color-verde">Datos Personales</h5>
+            <div class="form-row">
+              <div class="form-group col-md-3">
+                <label for="APELLIDO">Apellidos</label>
+                <input type="text" class="form-control" id="APELLIDO" name="APELLIDOS">
+              </div>
+              <div class="form-group col-md-3">
+                <label for="NOMBRE">Nombres</label>
+                <input type="text" class="form-control" id="NOMBRE" name="NOMBRES">
+              </div>
+              <div class="form-group col-md-3">
+                <label for="RUT">RUT</label>
+                <input type="text" class="form-control" id="RUT" name="RUT" maxlength="12">
+                <div id="rut-form-error" class="text-danger small mt-1"></div>
+              </div>
+              <div class="form-group col-md-3">
+                <label for="FECHA DE NACIMIENTO">Fecha de Nacimiento</label>
+                <input type="date" class="form-control" id="FECHA DE NACIMIENTO" name="FECHA DE NACIMIENTO">
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group col-md-3">
+                <label for="EDAD">Edad</label>
+                <input type="number" class="form-control" id="EDAD" name="EDAD" readonly>
+                <div id="edad-error" class="text-danger small mt-1"></div>
+              </div>
+              <div class="form-group col-md-3">
+                <label for="ESTADO CIVIL">Estado Civil</label>
+                <select class="form-control" id="ESTADO CIVIL" name="ESTADO CIVIL">
+                  <option value="">--</option>
+                  <option>SOLTERO(A)</option>
+                  <option>CASADO(A)</option>
+                  <option>DIVORCIADO(A)</option>
+                  <option>VIUDO(A)</option>
+                  <option>CONVIVIENTE CIVIL</option>
+                </select>
+              </div>
+              <div class="form-group col-md-3">
+                <label for="SEXO">Sexo</label>
+                <select class="form-control" id="SEXO" name="SEXO">
+                  <option>MASCULINO</option>
+                  <option>FEMENINO</option>
+                  <option>OTRO</option>
+                </select>
+              </div>
+              <div class="form-group col-md-3">
+                <label for="NACIONALIDAD">Nacionalidad</label>
+                <select class="form-control" id="NACIONALIDAD" name="NACIONALIDAD"></select>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group col-md-12">
+                <label for="INSCRIPCION">Inscripción (Comuna)</label>
+                <select class="form-control" id="INSCRIPCION" name="INSCRIPCION"></select>
+              </div>
+            </div>
+          </div>
+
+          <div class="section-wrapper">
+            <h5 class="section-title color-naranja">Inclusión y Diversidad</h5>
+            <div class="form-row">
+              <div class="form-group col-md-6">
+                <label for="PUEBLOS ORIGINARIOS">Pertenece a Pueblos Originarios</label>
+                <select class="form-control" id="PUEBLOS ORIGINARIOS" name="PUEBLOS ORIGINARIOS">
+                  <option value="">--</option>
+                  <option>NO</option>
+                  <option>SI</option>
+                </select>
+              </div>
+              <div id="detalle-pueblo-container" class="form-group col-md-6" style="display: none;">
+                <label for="PUEBLO ORIGINARIO DETALLE">Indique cuál</label>
+                <select class="form-control" id="PUEBLO ORIGINARIO DETALLE" name="PUEBLO ORIGINARIO DETALLE">
+                  <option value="">--</option>
+                  <option>MAPUCHE</option>
+                  <option>AYMARA</option>
+                  <option>RAPA NUI</option>
+                  <option>LICKANANTAY</option>
+                  <option>QUECHUA</option>
+                  <option>COLLA</option>
+                  <option>DIAGUITA</option>
+                  <option>KAWESQAR</option>
+                  <option>YAGAN</option>
+                  <option>OTRO</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-row align-items-center">
+              <div class="form-group col-md-4">
+                <label for="DISCAPACIDAD">Posee Discapacidad</label>
+                <select class="form-control" id="DISCAPACIDAD" name="DISCAPACIDAD">
+                  <option value="">--</option>
+                  <option>NO</option>
+                  <option>SI</option>
+                </select>
+              </div>
+              <div id="detalle-discapacidad-container" class="form-row col-md-8" style="display: none;">
+                <div class="form-group col-md-6">
+                  <label for="DESCRIPCION DISCAPACIDAD">Descripción</label>
+                  <input type="text" class="form-control" id="DESCRIPCION DISCAPACIDAD" name="DESCRIPCION DISCAPACIDAD">
+                </div>
+                <div class="form-group col-md-6">
+                  <label for="PORCENTAJE DISCAPACIDAD">% Discapacidad</label>
+                  <input type="number" class="form-control" id="PORCENTAJE DISCAPACIDAD" name="PORCENTAJE DISCAPACIDAD">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="section-wrapper">
+            <h5 class="section-title color-gris">Formación y Contacto</h5>
+            <div class="form-row">
+              <div class="form-group col-md-6">
+                <label for="PROFESION">Profesión</label>
+                <select class="form-control" id="PROFESION" name="PROFESION"></select>
+                <input type="text" class="form-control mt-2" id="PROFESION_OTRO" name="PROFESION_OTRO" placeholder="Especifique otra profesión..." style="display: none;">
+              </div>
+              <div class="form-group col-md-6">
+                <label for="INSTITUCION DE ESTUDIOS">Institución de Estudios</label>
+                <select class="form-control" id="INSTITUCION DE ESTUDIOS" name="INSTITUCION DE ESTUDIOS"></select>
+                <input type="text" class="form-control mt-2" id="INSTITUCION_DE_ESTUDIOS_OTRO" name="INSTITUCION_DE_ESTUDIOS_OTRO" placeholder="Especifique otra institución..." style="display: none;">
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group col-md-12">
+                <label for="OTROS ESTUDIOS">Otros Estudios</label>
+                <input type="text" class="form-control" id="OTROS ESTUDIOS" name="OTROS ESTUDIOS">
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group col-md-4">
+                <label for="DOMICILIO">Domicilio</label>
+                <input type="text" class="form-control" id="DOMICILIO" name="DOMICILIO">
+              </div>
+              <div class="form-group col-md-4">
+                <label for="NUMERO CONTACTO">Número Contacto</label>
+                <input type="tel" class="form-control" id="NUMERO CONTACTO" name="NUMERO CONTACTO">
+              </div>
+              <div class="form-group col-md-4">
+                <label for="CORREO ELECTRONICO">Correo Electrónico</label>
+                <input type="email" class="form-control" id="CORREO ELECTRONICO" name="CORREO ELECTRONICO">
+                <div id="correo-error" class="text-danger small mt-1"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="section-wrapper">
+            <h5 class="section-title color-azul">Datos Contractuales y de Ubicación</h5>
+            <div class="form-row">
+              <div class="form-group col-md-4">
+                <label for="DIRECCION">Dirección</label>
+                <select class="form-control" id="DIRECCION" name="DIRECCION"></select>
+              </div>
+              <div class="form-group col-md-4">
+                <label for="DEPARTAMENTO">Departamento</label>
+                <select class="form-control" id="DEPARTAMENTO" name="DEPARTAMENTO"></select>
+              </div>
+              <div class="form-group col-md-4">
+                <label for="OFICINA">Oficina (Sección)</label>
+                <select class="form-control" id="OFICINA" name="OFICINA"></select>
+              </div>
+              <div id="area-gestion-group" class="form-group col-md-4">
+                <label for="AREA DE GESTION">Área de Gestión</label>
+                <select class="form-control" id="AREA DE GESTION" name="AREA DE GESTION"></select>
+              </div>
+              <div id="centro-costo-group" class="form-group col-md-4">
+                <label for="CENTRO DE COSTO">Centro de Costo</label>
+                <input type="text" class="form-control" id="CENTRO DE COSTO" name="CENTRO DE COSTO" readonly>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group col-md-4">
+                <label for="FECHA INGRESO">Fecha Ingreso</label>
+                <input type="date" class="form-control" id="FECHA INGRESO" name="FECHA INGRESO">
+              </div>
+              <div class="form-group col-md-4">
+                <label for="FECHA INGRESO MUNICIPALIDAD">Fecha Ingreso Municipalidad</label>
+                <input type="date" class="form-control" id="FECHA INGRESO MUNICIPALIDAD" name="FECHA INGRESO MUNICIPALIDAD">
+              </div>
+              <div class="form-group col-md-4">
+                <label for="FECHA DE TERMINO">Fecha de Término</label>
+                <input type="date" class="form-control" id="FECHA DE TERMINO" name="FECHA DE TERMINO">
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group col-md-4">
+                <label for="MONTO BRUTO">Monto Bruto</label>
+                <input type="number" class="form-control" id="MONTO BRUTO" name="MONTO BRUTO">
+              </div>
+              <div class="form-group col-md-4">
+                <label for="MONTO PROPORCIONAL">Monto Proporcional</label>
+                <input type="number" class="form-control" id="MONTO PROPORCIONAL" name="MONTO PROPORCIONAL" readonly>
+              </div>
+              <div id="n-cuenta-group" class="form-group col-md-4">
+                <label for="N CUENTA" id="n-cuenta-label">N° Cuenta</label>
+                <input type="text" class="form-control" id="N CUENTA" name="N CUENTA">
+              </div>
+            </div>
+          </div>
+
+          <div class="section-wrapper">
+            <h5 class="section-title color-gris">Jornada y Horario</h5>
+            <div id="bloqueo-edicion-horario" class="text-center p-3 bg-light border rounded mb-3" style="display: block;">
+              <div class="alert alert-info text-left">
+                <label class="text-muted small mb-1">Resumen Generado (Guardado en BD):</label>
+                <div id="vista-previa-texto-horario" style="white-space: pre-wrap; font-family: monospace; font-weight: bold; color: #02143D;"></div>
+              </div>
+              <button type="button" class="btn btn-warning" onclick="App.methods.horario.habilitarEdicion()">
+                <i class="fas fa-lock-open"></i> Clickea aquí solo de ser necesario ajustar la jornada y horario </button>
+            </div>
+            <div id="controles-edicion-horario">
+              <div class="form-row mb-3">
+                <div class="form-group col-md-12">
+                  <label for="JORNADA">Tipo de Jornada</label>
+                  <select class="form-control" id="JORNADA" name="JORNADA">
+                    <option value="">-- SELECCIONAR --</option>
+                    <option value="JORNADA COMPLETA">Jornada Completa</option>
+                    <option value="MEDIA JORNADA">Media Jornada</option>
+                    <option value="TIEMPO PARCIAL">Tiempo Parcial</option>
+                    <option value="POR TURNOS">Por Turnos</option>
+                    <option value="SIN MARCAJE">Sin Marcaje</option>
+                    <option value="TALLERISTA O MONITOR">Tallerista o Monitor</option>
+                  </select>
+                </div>
+              </div>
+              <div id="panel-configuracion-horario" class="card bg-light mb-3" style="display: none;">
+                <div class="card-body">
+                  <h6 class="card-title text-info border-bottom pb-2 mb-3">
+                    <i class="fas fa-cog"></i> Configuración Detallada
+                  </h6>
+                  
+                  <!-- Contenedor Estandar (Bloques) -->
+                  <div id="container-horario-estandar" style="display: none;">
+                    <button type="button" class="btn btn-primary btn-block mb-3" onclick="App.methods.horario.sincronizarModal(true); $('#horarioModal').modal('show');">
+                        <i class="fas fa-edit"></i> Configurar Días y Horas en Modal
+                    </button>
+                  </div>
+
+                  <!-- Contenedor Turnos -->
+                  <div id="container-horario-turnos" style="display: none;">
+                    <button type="button" class="btn btn-primary btn-block mb-3" onclick="App.methods.horario.sincronizarModal(true); $('#horarioModal').modal('show');">
+                        <i class="fas fa-edit"></i> Configurar Turnos y Glosas
+                    </button>
+                  </div>
+
+                  <!-- Contenedor Sin Marcaje -->
+                  <div id="container-horario-sin-marcaje" style="display: none;">
+                    <div class="alert alert-info">
+                      <i class="fas fa-info-circle"></i> Esta modalidad no requiere registro de asistencia biométrica.
+                    </div>
+                    <div class="form-group">
+                      <label>Descripción de la excepción:</label>
+                      <input type="text" class="form-control" id="input-sin-marcaje" value="NO SUJETO A CONTROL DE HORARIO" readonly>
+                    </div>
+                  </div>
+
+                  <!-- Contenedor Tallerista -->
+                  <div id="container-horario-tallerista" style="display: none;">
+                    <button type="button" class="btn btn-primary btn-block mb-3" onclick="App.methods.horario.sincronizarModal(true); $('#horarioModal').modal('show');">
+                        <i class="fas fa-edit"></i> Configurar Actividades y Subtipos
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <div class="form-group mt-2">
+                <label for="resumen-horario-visual" class="text-muted small">Resumen Generado (Calculado):</label>
+                <textarea class="form-control form-control-sm" id="resumen-horario-visual" rows="3" readonly style="background-color: #e9ecef; font-family: monospace;"></textarea>
+              </div>
+            </div>
+            <input type="hidden" id="HORARIO" name="HORARIO">
+          </div>
+
+          <!-- ============================================================== -->
+          <!-- BLOQUE REINSERTADO: INFORMACIÓN ESPECÍFICA POR CALIDAD -->
+          <!-- ============================================================== -->
+          <div class="section-wrapper">
+            <h5 class="section-title color-azul">Información Específica por Calidad Contractual</h5>
+            
+            <div id="campos-contrata" style="display: none;">
+              <div class="form-row">
+                <div class="form-group col-md-6">
+                  <label for="DECRETO">Decreto</label>
+                  <input type="text" class="form-control" id="DECRETO" name="DECRETO">
+                </div>
+                <div class="form-group col-md-6">
+                  <label for="GRADO">Grado</label>
+                  <select class="form-control" id="GRADO" name="GRADO">
+                    <option value="">-- SELECCIONAR --</option>
+                    <option value="-">-</option>
+                    <option value="2">2</option><option value="4">4</option><option value="5">5</option><option value="6">6</option>
+                    <option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option>
+                    <option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option>
+                    <option value="15">15</option><option value="16">16</option><option value="17">17</option>
+                  </select>
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group col-md-6">
+                  <label for="ESCALAFON">Escalafón</label>
+                  <select class="form-control" id="ESCALAFON" name="ESCALAFON"><option value="">-- SELECCIONAR --</option><option value="-">-</option></select>
+                </div>
+              </div>
+              <hr>
+              <div class="form-group">
+                <label for="periodo-funcion-contrata">Seleccione el Período de Función</label>
+                <select class="form-control" id="periodo-funcion-contrata">
+                  <option value="">-- SELECCIONAR --</option>
+                  <option value="anual">ANUAL</option>
+                  <option value="semestral">SEMESTRAL</option>
+                </select>
+              </div>
+              <div id="funcion-anual-contrata" style="display: none;">
+                <div class="form-group">
+                  <label for="FUNCION_ANUAL_CONTRATA">Función (Anual)</label>
+                  <input type="text" class="form-control" id="FUNCION_ANUAL_CONTRATA" name="FUNCION">
+                </div>
+              </div>
+              <div id="funcion-semestral-contrata" style="display: none;">
+                <div class="form-group">
+                  <label for="FUNCION_SEM1_CONTRATA">Función Primer Semestre</label>
+                  <input type="text" class="form-control" id="FUNCION_SEM1_CONTRATA" name="FUNCION PRIMER SEMESTRE">
+                </div>
+                <div class="form-group">
+                  <label for="FUNCION_SEM2_CONTRATA">Función Segundo Semestre</label>
+                  <input type="text" class="form-control" id="FUNCION_SEM2_CONTRATA" name="FUNCION SEGUNDO SEMESTRE">
+                </div>
+              </div>
+            </div>
+
+            <div id="campos-fondos" style="display: none;">
+              <div class="form-row">
+                <div class="form-group col-md-6">
+                  <label for="NOMBRE DE CONVENIO">Nombre de Convenio</label>
+                  <input type="text" class="form-control" id="NOMBRE DE CONVENIO" name="NOMBRE DE CONVENIO">
+                </div>
+                <div class="form-group col-md-6">
+                  <label for="NOMBRE COORDINADOR DE CONVENIO">Nombre Coordinador</label>
+                  <input type="text" class="form-control" id="NOMBRE COORDINADOR DE CONVENIO" name="NOMBRE COORDINADOR DE CONVENIO">
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group col-md-6">
+                  <label for="CONTACTO COORDINADOR">Contacto Coordinador</label>
+                  <input type="text" class="form-control" id="CONTACTO COORDINADOR" name="CONTACTO COORDINADOR">
+                </div>
+              </div>
+              <hr>
+              <div class="form-group">
+                <label for="CARGO_PROGRAMA_FONDOS">Cargo</label>
+                <input type="text" class="form-control" id="CARGO_PROGRAMA_FONDOS" name="CARGO">
+              </div>
+              <div class="form-group">
+                <label for="FUNCION_FONDOS_DIRECTA">Función</label>
+                <textarea class="form-control" id="FUNCION_FONDOS_DIRECTA" name="FUNCION" rows="3"></textarea>
+              </div>
+            </div>
+
+            <div id="campos-honorarios" style="display: none;">
+              <div class="form-group">
+                <label for="PERFIL">Perfil</label>
+                <select class="form-control" id="PERFIL" name="PERFIL">
+                    <option value="">-- SELECCIONAR --</option>
+                    <option value="-">-</option>
+                    <!-- Los perfiles se poblarán dinámicamente -->
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="DESCRIPCION_PERFIL">Descripción del Perfil</label>
+                <textarea class="form-control" id="DESCRIPCION_PERFIL" name="DESCRIPCION PERFIL" rows="3" readonly></textarea>
+              </div>
+              <hr>
+              <div class="form-group">
+                <label for="periodo-funcion-honorarios">Seleccione el Período de Función</label>
+                <select class="form-control" id="periodo-funcion-honorarios">
+                  <option value="">-- SELECCIONAR --</option>
+                  <option value="anual">ANUAL</option>
+                  <option value="semestral">SEMESTRAL</option>
+                </select>
+              </div>
+              <div id="funcion-anual-honorarios" style="display: none;">
+                <div class="form-group">
+                  <label for="FUNCION_ANUAL_HONORARIOS">Función (Anual)</label>
+                  <input type="text" class="form-control" id="FUNCION_ANUAL_HONORARIOS" name="FUNCION">
+                </div>
+              </div>
+              <div id="funcion-semestral-honorarios" style="display: none;">
+                <div class="form-group">
+                  <label for="FUNCION_SEM1_HONORARIOS">Función Primer Semestre</label>
+                  <input type="text" class="form-control" id="FUNCION_SEM1_HONORARIOS" name="FUNCION PRIMER SEMESTRE">
+                </div>
+                <div class="form-group">
+                  <label for="FUNCION_SEM2_HONORARIOS">Función Segundo Semestre</label>
+                  <input type="text" class="form-control" id="FUNCION_SEM2_HONORARIOS" name="FUNCION SEGUNDO SEMESTRE">
+                </div>
+              </div>
+            </div>
+
+            <div id="campos-prestadores" style="display: none;">
+              <div class="form-group">
+                <label for="periodo-prestadores">Seleccione el Período</label>
+                <select class="form-control" id="periodo-prestadores">
+                  <option value="">-- SELECCIONAR --</option>
+                  <option value="anual">ANUAL</option>
+                  <option value="semestral">SEMESTRAL</option>
+                </select>
+              </div>
+              <div id="prestadores-anual" style="display: none;">
+                <div class="form-row">
+                  <div class="form-group col-md-6">
+                    <label for="PROGRAMA_ANUAL">Programa (Anual)</label>
+                    <input type="text" class="form-control" id="PROGRAMA_ANUAL" name="PROGRAMA">
+                  </div>
+                  <div class="form-group col-md-6">
+                    <label for="CODIGO_PROGRAMA_ANUAL">Código Programa (Anual)</label>
+                    <input type="text" class="form-control" id="CODIGO_PROGRAMA_ANUAL" name="CODIGO PROGRAMA">
+                  </div>
+                </div>
+                <div class="form-row">
+                  <div class="form-group col-md-12">
+                    <label for="FUNCION_ANUAL_PRESTADORES">Función (Anual)</label>
+                    <input type="text" class="form-control" id="FUNCION_ANUAL_PRESTADORES" name="FUNCION">
+                  </div>
+                </div>
+              </div>
+              <div id="prestadores-semestral" style="display: none;">
+                <ul class="nav nav-tabs">
+                  <li class="nav-item">
+                    <a class="nav-link active" data-toggle="tab" href="#semestre1">Primer Semestre</a>
+                  </li>
+                  <li class="nav-item">
+                    <a class="nav-link" data-toggle="tab" href="#semestre2">Segundo Semestre</a>
+                  </li>
+                </ul>
+                <div class="tab-content border border-top-0 p-3 mb-3">
+                  <div id="semestre1" class="tab-pane active">
+                    <br>
+                    <div class="form-group">
+                      <label for="PROGRAMA_SEM1_PRESTADORES">Programa Primer Semestre</label>
+                      <input type="text" class="form-control" id="PROGRAMA_SEM1_PRESTADORES" name="PROGRAMA PRIMER SEMESTRE">
+                    </div>
+                    <div class="form-group">
+                      <label for="CODIGO_PROGRAMA_SEM1">Código Programa Primer Semestre</label>
+                      <input type="text" class="form-control" id="CODIGO_PROGRAMA_SEM1" name="CODIGO PROGRAMA PRIMER SEMESTRE">
+                    </div>
+                    <div class="form-group">
+                      <label for="FUNCION_SEM1_PRESTADORES">Función Primer Semestre</label>
+                      <input type="text" class="form-control" id="FUNCION_SEM1_PRESTADORES" name="FUNCION PRIMER SEMESTRE">
+                    </div>
+                  </div>
+                  <div id="semestre2" class="tab-pane fade">
+                    <br>
+                    <div class="form-group">
+                      <label for="PROGRAMA_SEM2_PRESTADORES">Programa Segundo Semestre</label>
+                      <input type="text" class="form-control" id="PROGRAMA_SEM2_PRESTADORES" name="PROGRAMA SEGUNDO SEMESTRE">
+                    </div>
+                    <div class="form-group">
+                      <label for="CODIGO_PROGRAMA_SEM2">Código Programa Segundo Semestre</label>
+                      <input type="text" class="form-control" id="CODIGO_PROGRAMA_SEM2" name="CODIGO PROGRAMA SEGUNDO SEMESTRE">
+                    </div>
+                    <div class="form-group">
+                      <label for="FUNCION_SEM2_PRESTADORES">Función Segundo Semestre</label>
+                      <input type="text" class="form-control" id="FUNCION_SEM2_PRESTADORES" name="FUNCION SEGUNDO SEMESTRE">
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div id="campos-generico-funcion" style="display: none;">
+              <div class="form-group">
+                <label for="periodo-funcion-generico">Seleccione el Período de Función</label>
+                <select class="form-control" id="periodo-funcion-generico">
+                  <option value="">-- SELECCIONAR --</option>
+                  <option value="anual">ANUAL</option>
+                  <option value="semestral">SEMESTRAL</option>
+                </select>
+              </div>
+              <div id="funcion-anual-generico" style="display: none;">
+                <div class="form-group">
+                  <label for="FUNCION_ANUAL_GENERICO">Función (Anual)</label>
+                  <input type="text" class="form-control" id="FUNCION_ANUAL_GENERICO" name="FUNCION">
+                </div>
+              </div>
+              <div id="funcion-semestral-generico" style="display: none;">
+                <div class="form-group">
+                  <label for="FUNCION_SEM1_GENERICO">Función Primer Semestre</label>
+                  <input type="text" class="form-control" id="FUNCION_SEM1_GENERICO" name="FUNCION PRIMER SEMESTRE">
+                </div>
+                <div class="form-group">
+                  <label for="FUNCION_SEM2_GENERICO">Función Segundo Semestre</label>
+                  <input type="text" class="form-control" id="FUNCION_SEM2_GENERICO" name="FUNCION SEGUNDO SEMESTRE">
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- ============================================================== -->
+          <!-- FIN DEL BLOQUE REINSERTADO -->
+          <!-- ============================================================== -->
+
+          <div class="section-wrapper">
+            <h5 class="section-title color-naranja">Documentación y Estado</h5>
+            <div class="form-row">
+              <div class="form-group col-md-3">
+                <label for="FECHA ORNS/NI">Fecha ORNS/NI</label>
+                <input type="date" class="form-control" id="FECHA ORNS/NI" name="FECHA ORNS/NI">
+              </div>
+              <div class="form-group col-md-3">
+                <label for="NUMERO ORDEN DE SERVICIO">N° Orden de Servicio</label>
+                <input type="text" class="form-control" id="NUMERO ORDEN DE SERVICIO" name="NUMERO ORDEN DE SERVICIO">
+              </div>
+              <div class="form-group col-md-6">
+                <label for="archivo-orns">Adjuntar Orden de Servicio (PDF o Imagen)</label>
+                <input type="file" class="form-control" id="archivo-orns">
+                <div id="orns-upload-status" class="small mt-1"></div>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group col-md-4">
+                <label for="FECHA VENCIMIENTO CI">Vencimiento C.I.</label>
+                <input type="date" class="form-control" id="FECHA VENCIMIENTO CI" name="FECHA VENCIMIENTO CI">
+              </div>
+              <div class="form-group col-md-4">
+                <label for="FECHA C ANTECEDENTES">Cert. Antecedentes</label>
+                <input type="date" class="form-control" id="FECHA C ANTECEDENTES" name="FECHA C ANTECEDENTES">
+              </div>
+              <div class="form-group col-md-4">
+                <label for="FECHA C SALUD">Previsión de Salud</label>
+                <select class="form-control" id="FECHA C SALUD" name="FECHA C SALUD">
+                  <option value="" selected disabled>-- Seleccione --</option>
+                  <option>FONASA</option>
+                  <option>ISAPRE</option>
+                  <option>CAPREDENA</option>
+                  <option>DIPRECA</option>
+                  <option>NO POSEE</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group col-md-3">
+                <label for="CERTIFICADO AFILIACION">AFP</label>
+                <select class="form-control" id="CERTIFICADO AFILIACION" name="CERTIFICADO AFILIACION">
+                  <option value="" selected disabled>-- Seleccione --</option>
+                  <option>CAPITAL</option>
+                  <option>CUPRUM</option>
+                  <option>HABITAT</option>
+                  <option>MODELO</option>
+                  <option>PLANVITAL</option>
+                  <option>PROVIDA</option>
+                  <option>UNO</option>
+                  <option>NO POSEE</option>
+                </select>
+              </div>
+              <div class="form-group col-md-2">
+                <label for="SITUACION MILITAR">Sit. Militar</label>
+                <select class="form-control" id="SITUACION MILITAR" name="SITUACION MILITAR">
+                  <option value="" selected disabled>Seleccione...</option>
+                  <option value="AL DIA">AL DÍA</option>
+                  <option value="NO APLICA">NO APLICA</option>
+                </select>
+              </div>
+              <div class="form-group col-md-2">
+                <label for="ENTREVISTA">Entrevista</label>
+                <select class="form-control" id="ENTREVISTA" name="ENTREVISTA">
+                  <option value="" selected disabled>-- Seleccione --</option>
+                  <option>SI</option>
+                  <option>NO</option>
+                </select>
+              </div>
+              <div class="form-group col-md-2">
+                <label for="ENROLAJE MARCAJE">Enrolaje</label>
+                <select class="form-control" id="ENROLAJE MARCAJE" name="ENROLAJE MARCAJE">
+                  <option value="" selected disabled>-- Seleccione --</option>
+                  <option>SI</option>
+                  <option>NO</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group col-md-3">
+                <label for="PENSION DE ALIMENTOS">Pensión de Alimentos</label>
+                <select class="form-control" id="PENSION DE ALIMENTOS" name="PENSION DE ALIMENTOS">
+                  <option value="" selected disabled>-- Seleccione --</option>
+                  <option>SI</option>
+                  <option>NO</option>
+                </select>
+              </div>
+              <div class="form-group col-md-3">
+                <label for="FOLIO PENSION">Folio Certificado</label>
+                <input type="text" class="form-control" id="FOLIO PENSION" name="FOLIO PENSION">
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group col-md-12">
+                <label for="OBSERVACIONES">Observaciones</label>
+                <textarea class="form-control" id="OBSERVACIONES" name="OBSERVACIONES" rows="3"></textarea>
+              </div>
+            </div>
+          </div>
+
+          <div class="section-wrapper">
+            <div class="form-row">
+              <div class="form-group col-md-6">
+                <label for="ESTADO INGRESO">ESTADO INGRESO</label>
+                <select class="form-control" id="ESTADO INGRESO" name="ESTADO INGRESO">
+                  <option value="" disabled>-- Seleccione --</option>
+                  <option selected>NUEVO INGRESO</option>
+                  <option>INGRESO CANCELADO</option>
+                  <option>CAMBIO DE MODALIDAD</option>
+                </select>
+              </div>
+              <div class="form-group col-md-6">
+                <label for="ASIGNADO A">Asignado A</label>
+                <select class="form-control" id="ASIGNADO A" name="ASIGNADO A">
+                  <option value="" selected disabled>-- Seleccione --</option>
+                  <option>ABG</option>
+                  <option>YMR</option>
+                  <option>MJM</option>
+                  <option>JGA</option>
+                  <option>MGA</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="d-flex justify-content-end align-items-center mt-4">
+            <div id="loader-guardado" class="loader mr-3"></div>
+            <button type="button" id="btn-abrir-modal-documentos" class="btn btn-info btn-lg mr-3" style="display: none;">
+              <i class="fas fa-file-alt"></i> Generar Documentos </button>
+            <button type="button" id="btn-iniciar-guardado" class="btn btn-success btn-lg">
+              <i class="fas fa-save"></i> Guardar Registro </button>
+          </div>
+          <div id="status-message" class="mt-2 text-right"></div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================== -->
+<!-- NUEVO MODAL DE CONFIGURACIÓN DE HORARIO -->
+<!-- ============================================================== -->
+<div class="modal fade" id="horarioModal" tabindex="-1" role="dialog" aria-labelledby="horarioModalLabel" aria-hidden="true" data-backdrop="static">
+  <div class="modal-dialog modal-lg" role="document" style="max-width: 900px;"> <!-- Más ancho -->
+    <div class="modal-content">
+      <div class="modal-header bg-primary text-white">
+        <h5 class="modal-title" id="horarioModalLabel">Configurar Horario y Jornada</h5>
+        <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body" style="background-color: #f8f9fa;">
+        
+        <!-- 1. SELECTOR DE TIPO -->
+        <div class="card mb-3">
+            <div class="card-body p-3">
+                <label class="font-weight-bold text-primary">TIPO DE JORNADA</label>
+                <select id="modalJornadaSelect" class="form-control" onchange="App.methods.horario.gestionarVisibilidad()">
+                    <option value="" selected disabled>-- Seleccione una Jornada --</option>
+                    <option value="JORNADA COMPLETA">Jornada Completa</option>
+                    <option value="MEDIA JORNADA">Media Jornada</option>
+                    <option value="TIEMPO PARCIAL">Tiempo Parcial</option>
+                    <option value="POR TURNOS">Por Turnos</option>
+                    <option value="SIN MARCAJE">Sin Marcaje</option>
+                    <option value="TALLERISTA O MONITOR">Tallerista o Monitor</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- 2. CONTENEDORES DINÁMICOS -->
+        
+        <!-- A. ESTÁNDAR (Bloques) -->
+        <div id="modalVariableContainer" style="display: none;">
+            <div class="card mb-3">
+                <div class="card-body">
+                    <div class="form-group p-2 mb-2 bg-light border rounded" id="check247Container" style="display: none;">
+                        <div class="custom-control custom-checkbox">
+                            <input type="checkbox" class="custom-control-input" id="check247" onchange="App.methods.horario.toggle247(this.checked)">
+                            <label class="custom-control-label font-weight-bold" for="check247">Disponibilidad 24/7 (Anula horario específico)</label>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group mb-2" id="checkFestivosContainer" style="display: none;">
+                        <div class="custom-control custom-checkbox">
+                            <input type="checkbox" class="custom-control-input" id="checkFestivos" onchange="App.methods.horario.actualizarResumen()">
+                            <label class="custom-control-label" for="checkFestivos">Incluir texto "(incluyendo festivos)"</label>
+                        </div>
+                    </div>
+
+                    <div class="form-group mb-2" id="checkMaxDiasContainer" style="display: none;">
+                        <div class="d-flex align-items-center">
+                            <div class="custom-control custom-checkbox mr-3">
+                                <input type="checkbox" class="custom-control-input" id="checkMaxDias" onchange="App.methods.horario.toggleMaxDias(this.checked)">
+                                <label class="custom-control-label" for="checkMaxDias">Incluir Límite de Días</label>
+                            </div>
+                            <input type="number" id="inputMaxDias" class="form-control form-control-sm" placeholder="Días" style="width: 80px; display: none;" oninput="App.methods.horario.actualizarResumen()">
+                        </div>
+                    </div>
+
+                    <div id="modalBloquesContainer"></div>
+                    <button type="button" id="btnAgregarTramo" class="btn btn-outline-primary btn-sm mt-2" onclick="App.methods.horario.agregarBloque()">
+                        <i class="fas fa-plus"></i> Agregar Tramo
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- B. TURNOS -->
+        <div id="modalTurnosContainer" style="display: none;">
+            <div id="modalTurno5x2Container"></div>
+            <button id="btnAgregarTurno5x2_Master" type="button" class="btn btn-outline-primary btn-sm mt-2" onclick="App.methods.horario.turno.agregarTurno()">
+                <i class="fas fa-plus-circle"></i> Agregar Nuevo Turno
+            </button>
+
+            <div id="dynamicTurnContainer" class="mt-3 p-3 alert alert-info" style="display: none;">
+                <div class="custom-control custom-checkbox">
+                    <input type="checkbox" class="custom-control-input" id="checkDynamicTurn" onchange="App.methods.horario.turno.toggleDynamicTurn(this.checked)">
+                    <label class="custom-control-label font-weight-bold" for="checkDynamicTurn">Activar Glosa de Turno Dinámico (Forzar 44 hrs)</label>
+                </div>
+                <div id="dynamicTurnTextContainer" style="display: none;" class="mt-2">
+                    <label>Glosa Explicativa:</label>
+                    <textarea id="dynamicTurnGlosa" class="form-control" rows="2" oninput="App.methods.horario.actualizarResumen()">Turnos sujetos a la combinación de horarios de 4 días de 9 horas y 1 día de 8 horas entre las opciones especificadas para así cumplir 44 hrs.</textarea>
+                </div>
+            </div>
+        </div>
+
+        <!-- C. SIN MARCAJE -->
+        <div id="modalSinMarcajeContainer" style="display: none;">
+            <div class="form-group">
+                <label>Descripción</label>
+                <input type="text" class="form-control" id="modalSinMarcajeInput" value="NO SUJETO A CONTROL DE HORARIO ">
+            </div>
+        </div>
+
+        <!-- D. TALLERISTA -->
+        <div id="modalTalleristaContainer" style="display: none;">
+            
+            <div class="form-group border-bottom pb-3 mb-3">
+                <label class="text-primary font-weight-bold">TIPO DE MONITOR / TALLERISTA</label>
+                <select id="talleristaSubtypeSelect" class="form-control" onchange="App.methods.horario.tallerista.onSubtypeChange()">
+                    <option value="GENERICO">Genérico (Detallar actividades)</option>
+                    <option value="CAMPEONES">Campeones para Coquimbo</option>
+                    <option value="BANDA">Banda Los Menas</option>
+                </select>
+            </div>
+
+            <div id="talleristaGlobalOptions" class="alert alert-success mb-3">
+                 <div class="custom-control custom-checkbox mb-2">
+                    <input type="checkbox" class="custom-control-input" id="checkTallerista247" onchange="App.methods.horario.tallerista.onCheck247Change()">
+                    <label class="custom-control-label font-weight-bold" for="checkTallerista247">DISPONIBILIDAD 24/7 (Ocultar Todo)</label>
+                 </div>
+                 <div id="containerTalleristaHoras" style="display: none;">
+                    <label class="mr-2">Ingrese Total de Horas Semanales:</label>
+                    <input type="number" id="inputTalleristaHoras" class="form-control form-control-sm d-inline-block" style="width: 100px;" oninput="App.methods.horario.actualizarResumen()">
+                 </div>
+            </div>
+
+            <div id="modalTalleristaFilasContainer"></div>
+            <button type="button" class="btn btn-outline-secondary btn-sm mt-2" onclick="App.methods.horario.tallerista.agregarFila()">
+                <i class="fas fa-plus"></i> Agregar Actividad
+            </button>
+        </div>
+
+        <!-- 3. RESUMEN FINAL -->
+        <div class="form-group mt-4">
+            <label for="modalResumenHorario" class="font-weight-bold text-dark">VISTA PREVIA DEL RESUMEN</label>
+            <textarea id="modalResumenHorario" class="form-control bg-white" rows="4" readonly style="font-family: monospace;"></textarea>
+        </div>
+
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" onclick="App.methods.horario.guardarDesdeModal()">
+            <i class="fas fa-check"></i> Confirmar Horario
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

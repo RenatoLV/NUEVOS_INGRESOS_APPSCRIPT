@@ -1,0 +1,559 @@
+<style>
+      /* --- VARIABLES DE TEMA --- */
+      :root {
+        /* Fondo general de la página (fuera de la tarjeta) */
+        --bg-light: linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 100%);
+        
+        /* Fondo de la tarjeta principal (Blanco casi puro) */
+        --card-bg-light: rgba(255, 255, 255, 0.95);
+        --card-border-light: rgba(255, 255, 255, 0.25);
+        --text-color-light: #212529;
+
+        /* --- CAMBIO PRINCIPAL AQUÍ --- */
+        /* Hacemos el fondo de las secciones más oscuro/azulado */
+        /* Antes: rgba(0, 58, 135, 0.04) -> Ahora: rgba(0, 58, 135, 0.12) */
+        --section-bg-light: rgba(0, 58, 135, 0.12); 
+        
+        /* También oscurecemos un poco el borde para que combine */
+        --section-border-light: #cbd3da;
+        
+        --input-bg-light: #fff;
+        --input-border-light: #ced4da;
+        --title-color-light: #02143D;
+        --select2-dropdown-bg-light: #fff;
+        --select2-dropdown-border-light: #aaa;
+        --select2-hover-bg-light: #5897fb;
+        --select2-hover-text-light: #fff;
+        
+        /* Variables Modo Oscuro (Sin cambios) */
+        --bg-dark: #121212;
+        --card-bg-dark: rgba(28, 28, 30, 0.9);
+        --card-border-dark: rgba(255, 255, 255, 0.1);
+        --text-color-dark: #e4e6eb;
+        --section-bg-dark: rgba(255, 255, 255, 0.05);
+        --section-border-dark: #3a3b3c;
+        --input-bg-dark: #2a2a2e;
+        --input-border-dark: #555;
+        --title-color-dark: #a1c4fd;
+        --select2-dropdown-bg-dark: #2c2c2e;
+        --select2-dropdown-border-dark: #555;
+        --select2-hover-bg-dark: #5897fb;
+        --select2-hover-text-dark: #fff;
+      }
+
+      /* --- ESTILOS GENERALES (MODO CLARO POR DEFECTO) --- */
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+      }
+
+      body {
+        background: var(--bg-light);
+        background-attachment: fixed;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        color: var(--text-color-light);
+        transition: background-color 0.3s, color 0.3s;
+      }
+
+      .card {
+        background: var(--card-bg-light);
+        -webkit-backdrop-filter: blur(10px);
+        backdrop-filter: blur(10px);
+        border: 1px solid var(--card-border-light);
+        box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+        border-radius: 0.75rem;
+        transition: background-color 0.3s, border-color 0.3s;
+      }
+
+      .section-wrapper {
+        padding: 20px;
+        margin-bottom: 15px;
+        border-radius: 0.5rem;
+        /* Aquí se aplica el color de fondo modificado */
+        background-color: var(--section-bg-light); 
+        border: 1px solid var(--section-border-light);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05); /* Sombra suave */
+        transition: background-color 0.3s, border-color 0.3s;
+      }
+
+      h5.section-title {
+        color: var(--title-color-light);
+        padding-bottom: 8px;
+        border-bottom: 2px solid currentColor;
+        margin-bottom: 20px;
+        margin-top: 10px;
+        transition: color 0.3s;
+        font-weight: 600; /* Texto un poco más grueso */
+      }
+
+      .form-control:focus,
+      .select2-container--bootstrap4.select2-container--focus .select2-selection--single {
+        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, .25);
+        border-color: #80bdff;
+      }
+
+      .resultado-item {
+        padding: 8px 12px;
+        cursor: pointer;
+        border-bottom: 1px solid var(--section-border-light);
+      }
+
+      .resultado-item:last-child {
+        border-bottom: none;
+      }
+
+      .resultado-item:hover {
+        background-color: var(--section-bg-light);
+      }
+
+      /* --- ESTILOS MODO OSCURO --- */
+      body.dark-mode {
+        background: var(--bg-dark);
+        color: var(--text-color-dark);
+      }
+
+      body.dark-mode .card {
+        background: var(--card-bg-dark);
+        border: 1px solid var(--card-border-dark);
+        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+      }
+
+      body.dark-mode .section-wrapper {
+        background-color: var(--section-bg-dark);
+        border: 1px solid var(--section-border-dark);
+      }
+
+      body.dark-mode h5.section-title {
+        color: var(--title-color-dark);
+      }
+
+      body.dark-mode .color-azul {
+        color: #5dade2;
+      }
+
+      body.dark-mode .color-verde {
+        color: #58d68d;
+      }
+
+      body.dark-mode .color-naranja {
+        color: #f5b041;
+      }
+
+      body.dark-mode .color-gris {
+        color: #aeb6bf;
+      }
+
+      body.dark-mode label {
+        color: #d1d5db;
+      }
+
+      /* --- REGLAS MEJORADAS Y POTENCIADAS PARA CAMPOS EN MODO OSCURO --- */
+      body.dark-mode .form-control,
+      body.dark-mode .custom-select,
+      body.dark-mode .select2-container--bootstrap4 .select2-selection--single {
+        background-color: var(--input-bg-dark) !important;
+        color: var(--text-color-dark) !important;
+        border-color: var(--input-border-dark) !important;
+      }
+
+      body.dark-mode .form-control::placeholder {
+        color: #888;
+      }
+
+      body.dark-mode .select2-container--bootstrap4 .select2-selection--single .select2-selection__rendered {
+        color: var(--text-color-dark);
+      }
+
+      /* Estilo para el icono del calendario en modo oscuro */
+      body.dark-mode input[type="date"]::-webkit-calendar-picker-indicator {
+        filter: invert(1);
+      }
+
+      /* --- REGLAS MEJORADAS PARA SELECT2 EN MODO OSCURO --- */
+      body.dark-mode .select2-dropdown {
+        background-color: var(--select2-dropdown-bg-dark);
+        border-color: var(--select2-dropdown-border-dark);
+      }
+
+      body.dark-mode .select2-container--bootstrap4 .select2-results__option {
+        color: var(--text-color-dark);
+      }
+
+      body.dark-mode .select2-container--bootstrap4 .select2-results__option--highlighted {
+        background-color: var(--select2-hover-bg-dark) !important;
+        color: var(--select2-hover-text-dark) !important;
+      }
+
+      body.dark-mode .select2-container--bootstrap4 .select2-search__field {
+        background-color: var(--input-bg-dark) !important;
+        color: var(--text-color-dark) !important;
+        border-color: var(--input-border-dark) !important;
+      }
+
+      /* --- Otros estilos del modo oscuro --- */
+      body.dark-mode .modal-content {
+        background-color: #1e1e1e;
+        color: var(--text-color-dark);
+      }
+
+      body.dark-mode .modal-header,
+      body.dark-mode .modal-footer {
+        border-color: var(--input-border-dark);
+      }
+
+      body.dark-mode .close {
+        color: #fff;
+        text-shadow: none;
+      }
+
+      body.dark-mode .resultado-item {
+        border-bottom-color: var(--section-border-dark);
+      }
+
+      body.dark-mode .resultado-item:hover {
+        background-color: #2c2c2e;
+      }
+
+      body.dark-mode .logo-background {
+        filter: invert(1) hue-rotate(180deg);
+      }
+
+      /* --- ESTILOS GENERALES ADICIONALES --- */
+      #main-card-body {
+        min-height: 550px;
+        transition: all 0.4s ease;
+      }
+
+      .logo-background {
+        background-image: url('https://i.ibb.co/Mx4L11rH/Inicio-10.png');
+        background-repeat: no-repeat;
+        background-position: center 10px;
+        background-size: contain;
+      }
+
+      .con-espacio-logo {
+        padding-top: 300px !important;
+      }
+
+      #buscador-section,
+      #inicial-section {
+        margin-top: 130px;
+      }
+
+      .loader {
+        border: 5px solid #f3f3f3;
+        border-radius: 50%;
+        border-top: 5px solid #007bff;
+        width: 30px;
+        height: 30px;
+        animation: spin 1s linear infinite;
+        display: none;
+        margin: 10px auto;
+      }
+
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+
+      .select2-container {
+        z-index: 1051;
+      }
+
+      /* --- ESTILOS PARA EL NUEVO LAYOUT CON SIDEBAR --- */
+      /* Contenedor principal de la aplicación */
+      #app-layout {
+        display: flex;
+        width: 100%;
+        align-items: stretch;
+      }
+
+      /* El panel de navegación lateral (Sidebar) */
+      #sidebar {
+        min-width: 250px;
+        max-width: 250px;
+        background: #02143D;
+        /* Azul oscuro corporativo */
+        color: #fff;
+        transition: all 0.3s;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        position: sticky;
+        top: 0;
+        align-self: flex-start;
+      }
+
+      .sidebar-header {
+        padding: 20px;
+        background: #010f2c;
+        /* Un tono más oscuro para el header */
+        text-align: center;
+      }
+
+      .sidebar-header h3 {
+        font-size: 1.2em;
+        margin: 10px 0 0;
+      }
+
+      #sidebar ul.components {
+        padding: 20px 0;
+        border-bottom: 1px solid #47748b;
+        flex-grow: 1;
+        /* Empuja el footer hacia abajo */
+      }
+
+      #sidebar ul p {
+        color: #fff;
+        padding: 10px;
+      }
+
+      #sidebar ul li a {
+        padding: 12px 20px;
+        font-size: 1.1em;
+        display: block;
+        color: #a1c4fd;
+        /* Texto de enlaces azul claro */
+        text-decoration: none;
+        transition: all 0.2s;
+        border-left: 3px solid transparent;
+      }
+
+      #sidebar ul li a:hover {
+        color: #fff;
+        background: #010f2c;
+        border-left: 3px solid #3c8ce7;
+        /* Indicador azul brillante */
+      }
+
+      #sidebar ul li.active>a,
+      a[aria-expanded="true"] {
+        color: #fff;
+        background: #010f2c;
+        border-left: 3px solid #3c8ce7;
+      }
+
+      #sidebar ul li a i {
+        margin-right: 10px;
+        width: 20px;
+        /* Alinea los iconos */
+        text-align: center;
+      }
+
+      .sidebar-footer {
+        padding: 20px;
+        text-align: center;
+      }
+
+      .sidebar-footer button {
+        width: 100%;
+        color: #a1c4fd;
+        border-color: #a1c4fd;
+      }
+
+      .sidebar-footer button:hover {
+        background: #010f2c;
+        color: #fff;
+      }
+
+      /* El área de contenido principal */
+      #main-content {
+        width: 100%;
+        padding: 20px;
+        min-height: 100vh;
+        transition: all 0.3s;
+        background: #f1f5f9;
+        /* Un gris muy claro para el fondo */
+      }
+
+      /* Clase para ocultar las vistas que no están activas */
+      .vista-contenido {
+        display: none;
+        /* Por defecto, todas las vistas están ocultas */
+      }
+
+      /* Adaptación para modo oscuro */
+      body.dark-mode #main-content {
+        background: var(--bg-dark);
+      }
+
+      body.dark-mode #sidebar {
+        background: #18191a;
+        border-right: 1px solid #3a3b3c;
+      }
+
+      body.dark-mode .sidebar-header,
+      body.dark-mode #sidebar ul li a:hover,
+      body.dark-mode #sidebar ul li.active>a {
+        background: #242526;
+      }
+
+      /* AÑADE ESTO AL FINAL DE TU CSS */
+      .card-clickable {
+        transition: transform 0.2s ease-in-out;
+      }
+
+      .card-clickable:hover {
+        cursor: pointer;
+        transform: translateY(-5px);
+        /* Efecto de "levantarse" al pasar el mouse */
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+      }
+
+      /* Regla para aplanar la tarjeta de la vista de ingresos */
+      #vista-ingresos .card-flat {
+        border: none;
+        box-shadow: none;
+        background: transparent;
+      }
+
+      /* Estilo para la columna RUT en las tablas */
+      .col-rut {
+        min-width: 125px;
+        white-space: nowrap;
+      }
+
+      /* Estilo para resaltar campos con información faltante */
+      .campo-faltante {
+        border-left: 4px solid #dc3545 !important;
+        /* Borde izquierdo rojo */
+        background-color: #fff3f3;
+        /* Un fondo rosado muy sutil */
+      }
+
+      /* Ajuste para los selectores 'Select2' */
+      .campo-faltante+.select2-container .select2-selection--single {
+        border-left: 4px solid #dc3545 !important;
+        background-color: #fff3f3;
+      }
+
+      /* Estilo para el cuerpo del modal de detalles */
+      #detalles-modal-body {
+        max-height: 70vh;
+        /* Altura máxima del 70% de la ventana */
+        overflow-y: auto;
+        /* Muestra la barra de scroll vertical si es necesario */
+      }
+
+      /* Estilos para la nueva tabla moderna del dashboard */
+      .tabla-moderna {
+        border-collapse: separate;
+        border-spacing: 0 10px;
+        /* Espacio vertical entre filas */
+        margin-top: -10px;
+        /* Puede que necesites ajustar o quitar esto */
+        width: 100%;
+      }
+
+      .tabla-moderna thead th {
+        border: 0;
+        color: #6c757d;
+        /* Color de texto gris para el encabezado */
+        font-weight: 500;
+        text-transform: uppercase;
+        font-size: 0.8rem;
+        letter-spacing: 0.5px;
+      }
+
+      .tabla-moderna tbody tr {
+        background-color: #fff;
+        /* Asegúrate de que esto esté presente si no usas tema oscuro */
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        border-radius: 8px;
+        /* Esquinas redondeadas para las filas */
+        transition: transform 0.2s ease-in-out;
+      }
+
+      .tabla-moderna tbody tr:hover {
+        transform: translateY(-3px);
+        /* Efecto de levantar la fila */
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+      }
+
+      .tabla-moderna tbody td {
+        border: 0;
+        padding: 1rem;
+        vertical-align: middle;
+      }
+
+      .tabla-moderna tbody td:first-child {
+        border-top-left-radius: 8px;
+        border-bottom-left-radius: 8px;
+      }
+
+      .tabla-moderna tbody td:last-child {
+        border-top-right-radius: 8px;
+        border-bottom-right-radius: 8px;
+      }
+
+      /* Estilo para la fila que se está cargando */
+      .fila-cargando {
+        background-color: #e9ecef !important;
+        /* Un gris claro para indicar que está seleccionada */
+        cursor: progress;
+        /* Muestra el cursor de "cargando" */
+      }
+
+      /* ▼▼▼ BLOQUE COMPLETO PARA #ultimos-ingresos-container (REEMPLAZA CUALQUIER REGLA ANTERIOR PARA ESTE ID) ▼▼▼ */
+      #ultimos-ingresos-container {
+        display: flex;
+        /* Activa Flexbox */
+        flex-direction: column;
+        /* Apila título y tabla/mensaje verticalmente */
+        min-height: 350px;
+        /* Altura mínima TOTAL. AJUSTA ESTE VALOR según necesites */
+        /* border: 1px dashed blue; /* Descomenta para depurar */
+      }
+
+      #ultimos-ingresos-container>h4 {
+        margin-bottom: 1rem;
+        /* Espacio fijo debajo del título */
+        flex-shrink: 0;
+        /* Evita que el título se encoja */
+        /* border: 1px dashed green; /* Descomenta para depurar */
+      }
+
+      /* Contenedor INTERMEDIO para tabla O mensaje */
+      #tabla-o-mensaje-wrapper {
+        flex-grow: 1;
+        /* Este wrapper SÍ ocupa el espacio restante */
+        display: flex;
+        /* Permite centrar el mensaje si no hay tabla */
+        flex-direction: column;
+        /* Para que la tabla/mensaje ocupe el espacio */
+        /* border: 1px dashed red; /* Descomenta para depurar */
+      }
+
+      /* La tabla ocupa su espacio natural DENTRO del wrapper */
+      #tabla-o-mensaje-wrapper .tabla-moderna {
+        width: 100%;
+        border-collapse: separate;
+        /* Mantiene tu estilo original */
+        /* No necesita flex-grow aquí */
+      }
+
+      /* El mensaje SÍ usa flex-grow para centrarse si la tabla no está */
+      #tabla-o-mensaje-wrapper>p.text-muted {
+        flex-grow: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #6c757d;
+        font-style: italic;
+        padding: 2rem 0;
+        /* Añade algo de padding vertical */
+      }
+
+      /* ▲▲▲ FIN DEL BLOQUE ▲▲▲ */
+      #btn-volver-a-buscar {
+        display: none !important;
+        /* Oculta el botón */
+      }
+    </style>

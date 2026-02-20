@@ -1,0 +1,420 @@
+<script>
+// Este objeto contiene las funciones "Core" (init, setupUI, bindEvents)
+const App_Core_Functions = {
+    setupUI: function() {
+        const ui = this.ui; 
+
+        ui.btnToggleDarkMode = Array.from(document.querySelectorAll('#btn-toggle-dark-mode'));
+        ui.vistas = {
+            dashboard: document.getElementById('vista-dashboard'),
+            ingresos: document.getElementById('vista-ingresos'),
+            incompletos: document.getElementById('vista-incompletos'),
+            traspasos: document.getElementById('vista-traspasos'),
+            todos: document.getElementById('vista-todos'),
+            correos: document.getElementById('vista-correos')
+        };
+        
+        ui.cardIncompletos = document.getElementById('card-incompletos');
+        ui.cardPendientesContrato = document.getElementById('card-pendientes-contrato');
+        ui.cardPendientesNomina = document.getElementById('card-pendientes-nomina');
+        ui.btnExportarCSV = document.getElementById('btn-exportar-csv');
+        ui.filtroEstadoRadios = Array.from(document.querySelectorAll('.filtro-estado-radio'));
+        ui.inicialLoaderSection = document.getElementById('inicial-loader-section');
+        ui.ID = document.getElementById('ID');
+        ui.form = document.getElementById('registro-form');
+        ui.btnVolverACalidad = document.getElementById('btn-volver-a-calidad');
+        ui.btnIniciarCambioCalidad = document.getElementById('btn-iniciar-cambio-calidad');
+        ui.mainCardBody = document.getElementById('main-card-body');
+        ui.buscadorSection = document.getElementById('buscador-section');
+        ui.inicialSection = document.getElementById('inicial-section');
+        ui.mainFormSection = document.getElementById('main-form-section');
+        ui.calidadInicialSelect = document.getElementById('calidad-contractual-inicial');
+        ui.loaderBusqueda = document.getElementById('loader-busqueda');
+        ui.loaderGuardado = document.getElementById('loader-guardado');
+        ui.resultadosBusqueda = document.getElementById('resultados-busqueda');
+        ui.rutBusquedaInput = document.getElementById('rut-busqueda');
+        ui.rutBusquedaError = document.getElementById('rut-busqueda-error');
+        ui.calidadContractualHidden = document.getElementById('CALIDAD CONTRACTUAL');
+        ui.tituloFormulario = document.getElementById('titulo-completar-informacion');
+        ui.statusMessage = document.getElementById('status-message');
+        ui.btnIniciarGuardado = document.getElementById('btn-iniciar-guardado');
+        ui.btnAbrirModalDocumentos = document.getElementById('btn-abrir-modal-documentos');
+        ui.tabContratos = document.getElementById('tab-contratos');
+        ui.tabNomina = document.getElementById('tab-nomina');
+        
+        // Referencia al nuevo tab
+        ui.tabAvance = document.getElementById('tab-avance');
+
+        ui.detallesModalEditarBtn = document.getElementById('detalles-modal-editar-btn');
+        ui.rutFormInput = document.getElementById('RUT');
+        ui.rutFormError = document.getElementById('rut-form-error');
+        ui.fechaNacimientoInput = document.getElementById('FECHA DE NACIMIENTO');
+        ui.edadInput = document.getElementById('EDAD');
+        ui.edadError = document.getElementById('edad-error');
+        ui.correoInput = document.getElementById('CORREO ELECTRONICO');
+        ui.correoError = document.getElementById('correo-error');
+        ui.fechaRegistroInput = document.getElementById('FECHA DE REGISTRO');
+        ui.mesInput = document.getElementById('MES');
+        ui.fechaIngresoInput = document.getElementById('FECHA INGRESO');
+        ui.montoBrutoInput = document.getElementById('MONTO BRUTO');
+        ui.montoProporcionalInput = document.getElementById('MONTO PROPORCIONAL');
+        ui.gradoSelect = document.getElementById('GRADO');
+        ui.escalafonSelect = document.getElementById('ESCALAFON');
+        ui.perfilSelect = document.getElementById('PERFIL');
+        ui.descripcionPerfilTextarea = document.getElementById('DESCRIPCION_PERFIL');
+        ui.direccionSelect = document.getElementById('DIRECCION');
+        ui.departamentoSelect = document.getElementById('DEPARTAMENTO');
+        ui.oficinaSelect = document.getElementById('OFICINA');
+        ui.areaGestionSelect = document.getElementById('AREA DE GESTION');
+        ui.centroCostoInput = document.getElementById('CENTRO DE COSTO');
+        ui.areaGestionGroup = document.getElementById('area-gestion-group');
+        ui.centroCostoGroup = document.getElementById('centro-costo-group');
+        ui.nCuentaGroup = document.getElementById('n-cuenta-group');
+        ui.nCuentaLabel = document.getElementById('n-cuenta-label');
+        ui.camposPorCalidad = {
+            contrata: document.getElementById('campos-contrata'),
+            fondos: document.getElementById('campos-fondos'),
+            honorarios: document.getElementById('campos-honorarios'),
+            prestadores: document.getElementById('campos-prestadores'),
+            generico: document.getElementById('campos-generico-funcion')
+        };
+        ui.puebloOriginarioSelect = document.getElementById('PUEBLOS ORIGINARIOS');
+        ui.detallePuebloContainer = document.getElementById('detalle-pueblo-container');
+        ui.discapacidadSelect = document.getElementById('DISCAPACIDAD');
+        ui.detalleDiscapacidadContainer = document.getElementById('detalle-discapacidad-container');
+        ui.archivoOrnsInput = document.getElementById('archivo-orns');
+        ui.ornsUploadStatus = document.getElementById('orns-upload-status');
+        
+        if(App_Partes.ui.horario) {
+            ui.horario = App_Partes.ui.horario; 
+            ui.horario.jornadaSelect = document.getElementById('JORNADA');
+            ui.horario.horarioOcultoInput = document.getElementById('HORARIO');
+            ui.horario.bloqueoEdicionDiv = document.getElementById('bloqueo-edicion-horario');
+            ui.horario.controlesEdicionDiv = document.getElementById('controles-edicion-horario');
+            ui.horario.vistaPreviaTexto = document.getElementById('vista-previa-texto-horario');
+            ui.horario.modal = document.getElementById('horarioModal');
+            ui.horario.modalJornadaSelect = document.getElementById('modalJornadaSelect');
+            ui.horario.modalResumenTextarea = document.getElementById('modalResumenHorario');
+            ui.horario.containerBloques = document.getElementById('modalBloquesContainer');
+            ui.horario.containerTurnos = document.getElementById('modalTurnosContainer');
+            ui.horario.containerSinMarcaje = document.getElementById('modalSinMarcajeContainer');
+            ui.horario.containerTallerista = document.getElementById('modalTalleristaContainer');
+            ui.horario.containerVariable = document.getElementById('modalVariableContainer');
+            ui.horario.containerBloquesLista = document.getElementById('modalBloquesContainer');
+            ui.horario.containerTurnosLista = document.getElementById('modalTurno5x2Container');
+            ui.horario.containerTalleristaLista = document.getElementById('modalTalleristaFilasContainer');
+            ui.horario.check247 = document.getElementById('check247');
+            ui.horario.check247Container = document.getElementById('check247Container');
+            ui.horario.checkFestivos = document.getElementById('checkFestivos');
+            ui.horario.checkFestivosContainer = document.getElementById('checkFestivosContainer');
+            ui.horario.checkMaxDias = document.getElementById('checkMaxDias');
+            ui.horario.checkMaxDiasContainer = document.getElementById('checkMaxDiasContainer');
+            ui.horario.inputMaxDias = document.getElementById('inputMaxDias');
+            ui.horario.btnAgregarTramo = document.getElementById('btnAgregarTramo');
+            ui.horario.btnAgregarTurnoMaster = document.getElementById('btnAgregarTurno5x2_Master');
+            ui.horario.dynamicContainer = document.getElementById('dynamicTurnContainer');
+            ui.horario.checkDynamic = document.getElementById('checkDynamicTurn');
+            ui.horario.dynamicTextContainer = document.getElementById('dynamicTurnTextContainer');
+            ui.horario.dynamicGlosa = document.getElementById('dynamicTurnGlosa');
+            ui.horario.sinMarcajeInput = document.getElementById('modalSinMarcajeInput');
+            ui.horario.talleristaGlobalOptions = document.getElementById('talleristaGlobalOptions');
+            ui.horario.checkTallerista247 = document.getElementById('checkTallerista247');
+            ui.horario.containerTalleristaHoras = document.getElementById('containerTalleristaHoras');
+            ui.horario.inputTalleristaHoras = document.getElementById('inputTalleristaHoras');
+            ui.horario.talleristaSubtypeSelect = document.getElementById('talleristaSubtypeSelect');
+            ui.horario.btnGuardarModal = null; 
+        }
+    },
+
+    init: function() {
+        this.setupUI(); 
+        this.bindEvents();
+        // Inicializar en "Ver Todos" en lugar de "Dashboard"
+        this.methods.mostrarVista('todos');
+        
+        google.script.run
+            .withSuccessHandler(this.handlers.onDatosInicialesSuccess.bind(this))
+            .withFailureHandler(this.handlers.onFailure)
+            .obtenerDatosDiccionario();
+            
+        google.script.run
+            .withSuccessHandler(lista => {
+                if (lista && !lista.error) {
+                    App.state.todosLosIngresos = lista;
+                    // Inicializar filtros del dashboard cuando haya datos
+                    if (App.methods.inicializarFiltrosDashboard) {
+                        App.methods.inicializarFiltrosDashboard();
+                    }
+                }
+            })
+            .withFailureHandler(this.handlers.onFailure)
+            .obtenerTodosLosIngresos();
+    
+        if (localStorage.getItem('darkMode') === 'enabled') {
+            document.body.classList.add('dark-mode');
+            this.ui.btnToggleDarkMode.forEach(btn => {
+                btn.innerHTML = '<i class="fas fa-sun"></i>';
+            });
+        }
+    },
+
+    initExternalComponents: function() {
+        $(this.config.selectsJQuery).select2({ theme: 'bootstrap4' });
+        
+        if($('.select2-dashboard').length) {
+            $('.select2-dashboard').select2({
+                theme: 'bootstrap4',
+                placeholder: 'Filtrar...',
+                allowClear: true,
+                language: {
+                    noResults: function() { return "No encontrado"; }
+                }
+            });
+            $('.select2-dashboard').on('change', () => {
+                if(App.methods.actualizarTablaIngresosFiltrados)
+                    App.methods.actualizarTablaIngresosFiltrados();
+            });
+        }
+    },
+
+    bindEvents: function() {
+        document.querySelectorAll('#sidebar a[data-vista]').forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault(); 
+                const vistaId = e.currentTarget.dataset.vista;
+                this.methods.mostrarVista(vistaId); 
+            });
+        });
+
+        this.ui.cardIncompletos.addEventListener('click', () => this.methods.mostrarVista('incompletos')); 
+        this.ui.cardPendientesContrato.addEventListener('click', () => { 
+            this.methods.mostrarVista('traspasos'); 
+            $(this.ui.tabContratos).tab('show'); 
+            this.methods.traspaso.iniciarFlujo('contratos'); 
+        });
+        this.ui.cardPendientesNomina.addEventListener('click', () => { 
+            this.methods.mostrarVista('traspasos'); 
+            $(this.ui.tabNomina).tab('show'); 
+            this.methods.traspaso.iniciarFlujo('nomina'); 
+        });
+
+        this.ui.btnToggleDarkMode.forEach(btn => { 
+            btn.addEventListener('click', this.methods.toggleDarkMode.bind(this.methods));
+        });
+        
+        this.ui.buscadorSection.querySelector('#btn-buscar').addEventListener('click', () => this.methods.solicitarBusqueda());
+        this.ui.buscadorSection.querySelector('#btn-crear-nuevo').addEventListener('click', () => this.methods.cambiarVistaFormulario('inicial', true)); 
+        this.ui.inicialSection.querySelector('#btn-volver-a-buscar').addEventListener('click', () => this.methods.cambiarVistaFormulario('buscador', true)); 
+        this.ui.btnVolverACalidad.addEventListener('click', () => this.methods.cambiarVistaFormulario('inicial')); 
+
+        this.ui.btnIniciarCambioCalidad.addEventListener('click', this.methods.iniciarCambioDeCalidad.bind(this.methods));
+        this.ui.btnIniciarGuardado.addEventListener('click', () => $('#confirmarGuardadoModal').modal('show'));
+        this.ui.calidadInicialSelect.addEventListener('change', (e) => this.methods.seleccionarCalidad(e.target.value));
+        this.ui.form.addEventListener('change', this.handlers.onFormChange.bind(this.handlers));
+        this.ui.form.addEventListener('input', this.handlers.onFormInput.bind(this.handlers));
+        this.ui.rutBusquedaInput.addEventListener('blur', (e) => this.util.validarYFormatearRutEnCampo(e.target, this.ui.rutBusquedaError));
+        
+        this.ui.rutFormInput.addEventListener('blur', (e) => {
+            const inputRut = e.target;
+            const errorDiv = this.ui.rutFormError; 
+            this.util.validarYFormatearRutEnCampo(inputRut, errorDiv); 
+            const esNuevoRegistro = !this.ui.ID.value; 
+            const rutFormateado = inputRut.value;
+            const esValido = errorDiv.textContent === '';
+            if (esValido && rutFormateado && esNuevoRegistro) {
+                errorDiv.innerHTML = '<span class="text-info small">Verificando existencia...</span>';
+                google.script.run
+                    .withSuccessHandler((rutExiste) => {
+                        if (rutExiste) {
+                            errorDiv.innerHTML = '<span class="text-warning small"><i class="fas fa-exclamation-triangle mr-1"></i>¡Atención! Este RUT ya existe en otro registro.</span>';
+                        } else {
+                            errorDiv.textContent = '';
+                        }
+                    })
+                    .withFailureHandler((error) => {
+                        console.error("Error verificando RUT:", error);
+                        errorDiv.textContent = '';
+                    })
+                    .verificarRutExistente(rutFormateado);
+            }
+        });
+        
+        this.ui.correoInput.addEventListener('blur', (e) => this.util.validarCorreo(e.target)); 
+        this.ui.tabContratos.addEventListener('click', () => { 
+            this.methods.traspaso.iniciarFlujo('contratos'); 
+        });
+        this.ui.tabNomina.addEventListener('click', () => { 
+            this.methods.traspaso.iniciarFlujo('nomina'); 
+        });
+
+        // --- NUEVO LISTENER: Monitor de Avance (Incluido aquí) ---
+        if (this.ui.tabAvance) {
+            this.ui.tabAvance.addEventListener('click', () => {
+                if(this.methods.traspaso && this.methods.traspaso.cargarMonitorAvance) {
+                    this.methods.traspaso.cargarMonitorAvance();
+                }
+            });
+        }
+        
+        const fechaInicioInput = document.getElementById('FECHA INGRESO');
+        const fechaTerminoInput = document.getElementById('FECHA DE TERMINO');
+        if (fechaInicioInput) {
+            fechaInicioInput.addEventListener('change', () => {
+                if (typeof updateAvailableMonthsCache === 'function') {
+                    updateAvailableMonthsCache();
+                }
+            });
+        }
+        if (fechaTerminoInput) {
+            fechaTerminoInput.addEventListener('change', () => {
+                if (typeof updateAvailableMonthsCache === 'function') {
+                    updateAvailableMonthsCache();
+                }
+            });
+        }
+
+        $('#confirmarGuardadoModal').find('#btn-confirmar-guardado').on('click', () => this.methods.iniciarProcesoGuardado());
+        $('#prestadoresModal').find('#btn-confirmar-prestador').on('click', this.methods.finalizarSeleccionPrestador.bind(this.methods));
+        
+        this.ui.detallesModalEditarBtn.addEventListener('click', (e) => { 
+            const id = e.currentTarget.dataset.id;
+            if (id) {
+                $('#detallesModal').modal('hide');
+                document.body.style.cursor = 'wait';
+                google.script.run
+                    .withSuccessHandler(registroCompleto => {
+                        document.body.style.cursor = 'default';
+                        if (registroCompleto && !registroCompleto.error) {
+                            this.methods.mostrarVista('ingresos'); 
+                            this.methods.cargarRegistroParaEdicion(registroCompleto); 
+                        }
+                    })
+                    .withFailureHandler(error => {
+                        document.body.style.cursor = 'default';
+                        this.handlers.onFailure(error); 
+                    })
+                    .obtenerDatosCompletosPorId(id);
+            }
+        });
+
+        Object.keys(this.config.selectsConOtro).forEach(selectId => {
+            const otroInputId = this.config.selectsConOtro[selectId];
+            $(`[id="${selectId}"]`).on('select2:select', () => this.util.gestionarCampoOtro(selectId, otroInputId));
+        });
+        $('#DIRECCION, #DEPARTAMENTO, #OFICINA, [id="AREA DE GESTION"]').on('change', (e) => {
+            this.handlers.onFormChange.call(this.handlers, e);
+        });
+
+        const jornadaSelect = document.getElementById('JORNADA');
+        if (jornadaSelect) {
+            jornadaSelect.addEventListener('change', (e) => {
+                if (App.methods.horario && App.methods.horario.gestionarVisibilidadInline) {
+                    App.methods.horario.gestionarVisibilidadInline(e.target.value);
+                }
+            });
+        }
+
+        this.ui.btnAbrirModalDocumentos.addEventListener('click', () => { 
+            const container = document.getElementById('documentos-checkbox-container');
+            container.innerHTML = ''; 
+            if (!this.state.listaDeTemplates || this.state.listaDeTemplates.length === 0) { 
+                container.innerHTML = '<p class="text-danger">No se cargó la lista de documentos.</p>';
+                return;
+            }
+            this.state.listaDeTemplates.forEach(nombreTemplate => { 
+                const div = document.createElement('div');
+                div.className = 'form-check';
+                div.innerHTML = `
+                    <input class="form-check-input" type="checkbox" value="${nombreTemplate}" id="chk-${nombreTemplate.replace(/\s/g, '')}">
+                    <label class="form-check-label" for="chk-${nombreTemplate.replace(/\s/g, '')}">
+                        ${nombreTemplate}
+                    </label>`;
+                container.appendChild(div);
+            });
+            $('#generarDocumentosModal').modal('show');
+        });
+
+        document.getElementById('btn-ejecutar-generacion').addEventListener('click', () => {
+            const idEmpleado = this.ui.ID.value; 
+            const documentosSeleccionados = [];
+            document.querySelectorAll('#documentos-checkbox-container input[type="checkbox"]:checked').forEach(chk => {
+                documentosSeleccionados.push(chk.value);
+            });
+            if (documentosSeleccionados.length === 0) {
+                alert('Por favor, seleccione al menos un documento para generar.');
+                return;
+            }
+            const loader = document.getElementById('loader-generacion');
+            const btn = document.getElementById('btn-ejecutar-generacion');
+            loader.style.display = 'block';
+            btn.disabled = true;
+            google.script.run
+                .withSuccessHandler(function(response) {
+                loader.style.display = 'none';
+                btn.disabled = false;
+                $('#generarDocumentosModal').modal('hide');
+                if (response.success) {
+                    document.getElementById('exito-modal-mensaje').textContent = `Los documentos para ${response.nombre} se generaron correctamente.`;
+                    document.getElementById('exito-modal-link').href = response.folderUrl;
+                    $('#exitoModal').modal('show');
+                } else {
+                    alert('Ocurrió un error al generar los documentos: ' + response.message);
+                }
+                })
+                .withFailureHandler(this.handlers.onFailure) 
+                .generarDocumentosDesdeWeb(idEmpleado, documentosSeleccionados);
+        });
+
+        if (this.ui.btnExportarCSV) { 
+            this.ui.btnExportarCSV.addEventListener('click', this.methods.exportarTablaCSV); 
+        }
+
+        this.ui.filtroEstadoRadios.forEach(radio => { 
+            radio.addEventListener('change', (e) => {
+                if (e.target.checked) {
+                    this.state.filtroEstadoIngresoActual = e.target.value; 
+                    if(this.methods.actualizarTablaIngresosFiltrados) {
+                        this.methods.actualizarTablaIngresosFiltrados(); 
+                    }
+                }
+            });
+        });
+    }
+};
+
+document.addEventListener('DOMContentLoaded', function() {
+    'use strict';
+    
+    const methodsCombined = Object.assign({}, App_Methods);
+    
+    if (window.App_Horario_Temp) {
+        methodsCombined.horario = window.App_Horario_Temp;
+    }
+
+    // --- INTEGRACIÓN SEGURA DEL MÓDULO DE CORREO ---
+    if (window.App_Correo_Temp) {
+        // Asignamos los métodos del módulo al objeto principal
+        methodsCombined.correo = window.App_Correo_Temp;
+        // Mapeamos la función principal para que el sidebar funcione
+        methodsCombined.cargarVistaCorreos = window.App_Correo_Temp.cargarVista;
+    } else {
+        console.warn("Módulo de correo no cargado o no disponible.");
+    }
+
+    const App = {
+        state: App_Partes.state,
+        ui: App_Partes.ui,
+        config: App_Partes.config,
+        handlers: App_Handlers,
+        methods: methodsCombined, 
+        util: App_Utils,
+        setupUI: App_Core_Functions.setupUI,
+        init: App_Core_Functions.init,
+        initExternalComponents: App_Core_Functions.initExternalComponents,
+        bindEvents: App_Core_Functions.bindEvents
+    };
+
+    window.App = App;
+    App.init();
+});
+</script>

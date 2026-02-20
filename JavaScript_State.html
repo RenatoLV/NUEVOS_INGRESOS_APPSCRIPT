@@ -1,0 +1,158 @@
+<script>
+// Este objeto contiene la configuración, estado y referencias a la UI.
+const App_Partes = {
+    state: {
+        datosPerfiles: [],
+        escalaDeSueldos: [],
+        datosJerarquia: [],
+        datosGrados: [],
+        empleadosParaTraspaso: [],
+        modoCambioCalidad: false,
+        listaDeTemplates: [],
+        todosLosIngresos: [],
+        idRegistroOriginal: null,
+        diccionarioCargado: false,
+        filtroCalidadActual: null,
+        filtroMesActual: null,
+        ultimosIngresosDashboard: [],
+        filtrosSubCalidadActual: [],
+        filtroEstadoIngresoActual: "TODOS",
+        datosTablaActual: [],
+        directorioJefaturas: []
+    },
+    ui: {
+        // Vistas principales
+        vistas: {}, 
+        inicialLoaderSection: null,
+
+        // Botones Dark Mode (Array)
+        btnToggleDarkMode: [],
+
+        // --- Dashboard ---
+        cardIncompletos: null,
+        cardPendientesContrato: null,
+        cardPendientesNomina: null,
+        btnExportarCSV: null,
+        filtroEstadoRadios: [],
+
+        // --- Gestión de Ingresos (Formulario) ---
+        ID: null,
+        form: null,
+        mainCardBody: null,
+        buscadorSection: null,
+        inicialSection: null,
+        mainFormSection: null,
+        calidadInicialSelect: null,
+        btnVolverACalidad: null,
+        btnIniciarCambioCalidad: null,
+        loaderBusqueda: null,
+        resultadosBusqueda: null,
+        rutBusquedaInput: null,
+        rutBusquedaError: null,
+        calidadContractualHidden: null,
+        tituloFormulario: null,
+        statusMessage: null,
+        loaderGuardado: null,
+        btnIniciarGuardado: null,
+        btnAbrirModalDocumentos: null,
+        
+        // --- Traspasos ---
+        tabContratos: null,
+        tabNomina: null,
+
+        // --- Modales ---
+        detallesModalEditarBtn: null,
+        
+        // --- Campos del Formulario ---
+        rutFormInput: null,
+        rutFormError: null,
+        fechaNacimientoInput: null,
+        edadInput: null,
+        edadError: null,
+        correoInput: null,
+        correoError: null,
+        fechaRegistroInput: null,
+        mesInput: null,
+        fechaIngresoInput: null,
+        montoBrutoInput: null,
+        montoProporcionalInput: null,
+        gradoSelect: null,
+        escalafonSelect: null,
+        perfilSelect: null,
+        descripcionPerfilTextarea: null,
+        direccionSelect: null,
+        departamentoSelect: null,
+        oficinaSelect: null,
+        areaGestionSelect: null,
+        centroCostoInput: null,
+        areaGestionGroup: null,
+        centroCostoGroup: null,
+        nCuentaGroup: null,
+        nCuentaLabel: null,
+        camposPorCalidad: {}, 
+        puebloOriginarioSelect: null,
+        detallePuebloContainer: null,
+        discapacidadSelect: null,
+        detalleDiscapacidadContainer: null,
+        archivoOrnsInput: null,
+        ornsUploadStatus: null,
+        
+        // --- NUEVA ESTRUCTURA DE HORARIO (Referencias al DOM) ---
+        horario: {
+            // Elementos del formulario principal
+            jornadaSelect: null, // Input readonly 'JORNADA'
+            horarioOcultoInput: null, // Textarea readonly 'HORARIO'
+            bloqueoEdicionDiv: null,
+            controlesEdicionDiv: null,
+            vistaPreviaTexto: null,
+            
+            // Elementos del Modal
+            modal: null,
+            modalJornadaSelect: null,
+            modalResumenTextarea: null,
+            
+            // Contenedores del Modal
+            containerBloques: null,
+            containerTurnos: null,
+            containerSinMarcaje: null,
+            containerTallerista: null,
+            containerVariable: null, // Para bloques estándar
+            
+            // Botones Modal
+            btnGuardarModal: null
+        }
+    },
+    config: {
+        mapeoCalidad: {
+            'CONTRATA': { idContenedor: 'contrata', idSelectorPeriodo: 'periodo-funcion-contrata', idBasePeriodo: 'contrata' },
+            'PLANTA': { idContenedor: 'contrata', idSelectorPeriodo: 'periodo-funcion-contrata', idBasePeriodo: 'contrata' },
+            'PLANTA SUPLENCIA': { idContenedor: 'contrata', idSelectorPeriodo: 'periodo-funcion-contrata', idBasePeriodo: 'contrata' },
+            'ADMINISTRACION DE FONDOS': { idContenedor: 'fondos', idSelectorPeriodo: null, idBasePeriodo: 'fondos' },
+            'HONORARIOS SUMA ALZADA': { idContenedor: 'honorarios', idSelectorPeriodo: 'periodo-funcion-honorarios', idBasePeriodo: 'honorarios' },
+            'PRESTADORES DE SERVICIO': { idContenedor: 'prestadores', idSelectorPeriodo: 'periodo-prestadores', idBasePeriodo: 'prestadores' },
+            'PRESTADORES DE SERVICIO - BANDA LOS MENAS': { idContenedor: 'prestadores', idSelectorPeriodo: 'periodo-prestadores', idBasePeriodo: 'prestadores' },
+            'PRESTADORES DE SERVICIO - SIN MARCAJE': { idContenedor: 'prestadores', idSelectorPeriodo: 'periodo-prestadores', idBasePeriodo: 'prestadores' },
+            'PRESTADORES DE SERVICIO - CAMPEONES PARA COQUIMBO': { idContenedor: 'prestadores', idSelectorPeriodo: 'periodo-prestadores', idBasePeriodo: 'prestadores' },
+            'PRESTADORES DE SERVICIO - GENÉRICO': { idContenedor: 'prestadores', idSelectorPeriodo: 'periodo-prestadores', idBasePeriodo: 'prestadores' },
+            'CODIGO DEL TRABAJO': { idContenedor: 'generico', idSelectorPeriodo: 'periodo-funcion-generico', idBasePeriodo: 'generico' },
+            'PLANTA CEMENTERIO': { idContenedor: 'generico', idSelectorPeriodo: 'periodo-funcion-generico', idBasePeriodo: 'generico' }
+        },
+        selectsConOtro: {
+            'PROFESION': 'PROFESION_OTRO',
+            'INSTITUCION DE ESTUDIOS': 'INSTITUCION_DE_ESTUDIOS_OTRO'
+        },
+        selectsJQuery: '[id="INSTITUCION DE ESTUDIOS"], #PROFESION, #NACIONALIDAD, #INSCRIPCION, #DIRECCION, #DEPARTAMENTO, #OFICINA, #AREA\\ DE\\ GESTION',
+        camposInaplicablesPorCalidad: {
+            'PRESTADORES DE SERVICIO': ["NOMBRE DE CONVENIO", "NOMBRE COORDINADOR DE CONVENIO", "CONTACTO COORDINADOR", "PERFIL", "DESCRIPCION PERFIL", "GRADO", "ESCALAFON", "DECRETO"],
+            'HONORARIOS SUMA ALZADA': ["NOMBRE DE CONVENIO", "NOMBRE COORDINADOR DE CONVENIO", "CONTACTO COORDINADOR", "PROGRAMA", "CODIGO PROGRAMA", "PROGRAMA PRIMER SEMESTRE", "CODIGO PROGRAMA PRIMER SEMESTRE", "PROGRAMA SEGUNDO SEMESTRE", "CODIGO PROGRAMA SEGUNDO SEMESTRE", "GRADO", "ESCALAFON", "DECRETO"],
+            'PLANTA': ["NOMBRE DE CONVENIO", "NOMBRE COORDINADOR DE CONVENIO", "CONTACTO COORDINADOR", "PROGRAMA", "CODIGO PROGRAMA", "PROGRAMA PRIMER SEMESTRE", "CODIGO PROGRAMA PRIMER SEMESTRE", "PROGRAMA SEGUNDO SEMESTRE", "CODIGO PROGRAMA SEGUNDO SEMESTRE", "PERFIL", "DESCRIPCION PERFIL"],
+            'PLANTA SUPLENCIA': ["NOMBRE DE CONVENIO", "NOMBRE COORDINADOR DE CONVENIO", "CONTACTO COORDINADOR", "PROGRAMA", "CODIGO PROGRAMA", "PROGRAMA PRIMER SEMESTRE", "CODIGO PROGRAMA PRIMER SEMESTRE", "PROGRAMA SEGUNDO SEMESTRE", "CODIGO PROGRAMA SEGUNDO SEMESTRE", "PERFIL", "DESCRIPCION PERFIL"],
+            'CONTRATA': ["NOMBRE DE CONVENIO", "NOMBRE COORDINADOR DE CONVENIO", "CONTACTO COORDINADOR", "PROGRAMA", "CODIGO PROGRAMA", "PROGRAMA PRIMER SEMESTRE", "CODIGO PROGRAMA PRIMER SEMESTRE", "PROGRAMA SEGUNDO SEMESTRE", "CODIGO PROGRAMA SEGUNDO SEMESTRE", "PERFIL", "DESCRIPCION PERFIL"],
+            'ADMINISTRACION DE FONDOS': ["PROGRAMA", "CODIGO PROGRAMA", "PROGRAMA PRIMER SEMESTRE", "CODIGO PROGRAMA PRIMER SEMESTRE", "PROGRAMA SEGUNDO SEMESTRE", "CODIGO PROGRAMA SEGUNDO SEMESTRE", "PERFIL", "DESCRIPCION PERFIL", "GRADO", "ESCALAFON", "DECRETO", "AREA DE GESTION", "CENTRO DE COSTO"],
+            'CODIGO DEL TRABAJO': ["NOMBRE DE CONVENIO", "NOMBRE COORDINADOR DE CONVENIO", "CONTACTO COORDINADOR", "PROGRAMA", "CODIGO PROGRAMA", "PROGRAMA PRIMER SEMESTRE", "CODIGO PROGRAMA PRIMER SEMESTRE", "PROGRAMA SEGUNDO SEMESTRE", "CODIGO PROGRAMA SEGUNDO SEMESTRE", "PERFIL", "DESCRIPCION PERFIL", "GRADO", "ESCALAFON", "DECRETO"],
+            'PLANTA CEMENTERIO': ["NOMBRE DE CONVENIO", "NOMBRE COORDINADOR DE CONVENIO", "CONTACTO COORDINADOR", "PROGRAMA", "CODIGO PROGRAMA", "PROGRAMA PRIMER SEMESTRE", "CODIGO PROGRAMA PRIMER SEMESTRE", "PROGRAMA SEGUNDO SEMESTRE", "CODIGO PROGRAMA SEGUNDO SEMESTRE", "PERFIL", "DESCRIPCION PERFIL", "GRADO", "ESCALAFON", "DECRETO"]
+        },
+        camposExcluidosDeNoAplica: ['ID', 'RUT', 'NOMBRES', 'APELLIDOS', 'FECHA DE REGISTRO', 'MES', 'AÑO', 'ESTADO DE INFORMACION', 'ESTADO INGRESO', 'CALIDAD CONTRACTUAL', 'CODIGO', 'ASIGNADO A', 'OBSERVACIONES']
+    }
+};
+</script>

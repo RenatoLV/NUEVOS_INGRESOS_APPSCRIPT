@@ -1,0 +1,301 @@
+<script>
+/**
+ * OBJETO GLOBAL DE UTILIDADES
+ * Contiene funciones de validación, formateo y manejo de caché mejorado.
+ */
+const App_Utils = {
+    // --- 1. VALIDACIONES BÁSICAS ---
+    tieneDatos: function(valor) {
+        return valor && String(valor).trim() && String(valor).trim() !== '-' && String(valor).trim().toUpperCase() !== 'NO APLICA';
+    },
+
+    validarCorreo: function(inputElement) {
+        const errorElement = document.getElementById('correo-error');
+        const correo = inputElement.value;
+        const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (correo && !regex.test(correo)) {
+            errorElement.textContent = 'El formato del correo no es válido.';
+        } else {
+            errorElement.textContent = '';
+        }
+    },
+
+    // --- 2. MANEJO DE RUT ---
+    validarYFormatearRut: function(rut) {
+        if (!rut || typeof rut !== 'string') { return { esValido: false, rutFormateado: rut }; }
+        let rutLimpio = rut.replace(/[\.\-]/g, '').toLowerCase();
+        let cuerpo = rutLimpio.slice(0, -1);
+        let dv = rutLimpio.slice(-1);
+
+        if (!/^\d+$/.test(cuerpo) || !/^[\dk]$/.test(dv)) { return { esValido: false, rutFormateado: rut }; }
+
+        let suma = 0;
+        let multiplo = 2;
+        for (let i = cuerpo.length - 1; i >= 0; i--) {
+            suma += parseInt(cuerpo.charAt(i), 10) * multiplo;
+            multiplo = multiplo === 7 ? 2 : multiplo + 1;
+        }
+        const dvEsperado = 11 - (suma % 11);
+        let dvFinal;
+        if (dvEsperado === 11) { dvFinal = '0'; } else if (dvEsperado === 10) { dvFinal = 'k'; } else { dvFinal = dvEsperado.toString(); }
+
+        const esValido = dvFinal === dv;
+        if (cuerpo.length === 7) { cuerpo = '0' + cuerpo; }
+        const rutFormateado = (cuerpo + '-' + dv).toUpperCase();
+
+        return { esValido, rutFormateado };
+    },
+
+    validarYFormatearRutEnCampo: function(inputElement, errorElement) {
+        const rut = inputElement.value;
+        if (!rut) {
+            if(errorElement) errorElement.textContent = '';
+            return;
+        }
+        const resultado = this.validarYFormatearRut(rut); 
+        if (resultado.esValido) {
+            inputElement.value = resultado.rutFormateado; 
+            if(errorElement) errorElement.textContent = '';
+        } else {
+            if(errorElement) errorElement.textContent = 'RUT no válido.';
+        }
+    },
+
+    // --- 3. UI Y FORMULARIOS ---
+    gestionarCampoOtro: function(selectId, otroInputId) {
+        const select = document.getElementById(selectId);
+        const otroInput = document.getElementById(otroInputId);
+        if (select && otroInput) {
+            otroInput.style.display = (select.value.toUpperCase() === 'OTRO') ? 'block' : 'none';
+        }
+    },
+
+    gestionarCampoCondicional: function(selectElement, container, valorDisparo, displayType = 'block') {
+        if (container) {
+            container.style.display = (selectElement.value === valorDisparo) ? displayType : 'none';
+        }
+    },
+
+    poblarSelect: function(selectElement, optionsArray, valorPorDefecto = "") {
+        if (!selectElement) return;
+        const valorActual = selectElement.value;
+        selectElement.innerHTML = '<option value="">-- SELECCIONAR --</option><option value="-">-</option>';
+        optionsArray.forEach(function(opt) {
+            if (opt) {
+                const option = document.createElement('option');
+                option.value = opt;
+                option.textContent = opt;
+                selectElement.appendChild(option);
+            }
+        });
+        selectElement.value = optionsArray.includes(valorActual) ? valorActual : valorPorDefecto;
+    },
+
+    poblarSelectsDesdeDiccionario: function(diccionario) {
+        const self = this;
+        const poblarUnico = function(select, datos, campo) {
+            if (!select || !datos) return;
+            const opciones = [...new Set(datos.map(item => item[campo]).filter(Boolean))];
+            if (campo === 'grado') opciones.sort((a, b) => parseInt(a) - parseInt(b));
+            self.poblarSelect(select, opciones);
+        };
+        
+        poblarUnico(App.ui.gradoSelect, App.state.datosGrados, 'grado');
+        poblarUnico(App.ui.perfilSelect, App.state.datosPerfiles, 'perfil');
+        poblarUnico(App.ui.direccionSelect, App.state.datosJerarquia, 'direccion');
+        poblarUnico(App.ui.departamentoSelect, App.state.datosJerarquia, 'departamento');
+        poblarUnico(App.ui.oficinaSelect, App.state.datosJerarquia, 'oficina');
+        
+        const mapeo = {
+            'AREA DE GESTION': 'AREA DE GESTION', 
+            'NACIONALIDAD': 'NACIONALIDAD', 
+            'PROFESION': 'PROFESION', 
+            'INSTITUCION DE ESTUDIOS': 'INSTITUCION DE ESTUDIOS', 
+            'INSCRIPCION': 'INSCRIPCION'
+        };
+        
+        Object.keys(mapeo).forEach(function(key) {
+            const selectElement = document.getElementById(key);
+            if (selectElement) { self.poblarSelect(selectElement, diccionario[mapeo[key]] || []); }
+        });
+    },
+
+    cargarSelect2ConOpcionOtro: function(selectId, otroInputId, valor) {
+        const select = $('[id="' + selectId + '"]');
+        const otroInput = document.getElementById(otroInputId);
+        if (!valor) {
+            select.val(null).trigger('change');
+            if(otroInput) { otroInput.value = ''; otroInput.style.display = 'none'; }
+            return;
+        }
+        if (select.find('option[value="' + valor + '"]').length) {
+            select.val(valor).trigger('change');
+            if(otroInput) otroInput.style.display = 'none';
+        } else {
+            select.val('OTRO').trigger('change');
+            if (otroInput) {
+                otroInput.value = valor;
+                otroInput.style.display = 'block';
+            }
+        }
+    },
+
+    // --- 4. FILTROS Y TABLAS ---
+    filtrarTabla: function(inputId, tablaId) {
+        const input = document.getElementById(inputId);
+        const tabla = document.getElementById(tablaId);
+        if (!input || !tabla) return;
+        const filas = tabla.getElementsByTagName("tr");
+        const filtro = input.value.toUpperCase();
+
+        for (let i = 1; i < filas.length; i++) {
+            const celdas = filas[i].getElementsByTagName("td");
+            let textoVisible = false;
+            for (let j = 0; j < celdas.length; j++) {
+                if (celdas[j] && celdas[j].textContent.toUpperCase().indexOf(filtro) > -1) {
+                    textoVisible = true;
+                    break;
+                }
+            }
+            filas[i].style.display = textoVisible ? "" : "none";
+        }
+    },
+
+    // --- 5. CÁLCULOS ---
+    calcularDiferenciaHoras: function(horaInicio, horaFin) {
+        if (!horaInicio || !horaFin) return 0;
+        try {
+            const h1 = parseInt(horaInicio.split(':')[0]);
+            const m1 = parseInt(horaInicio.split(':')[1]);
+            const h2 = parseInt(horaFin.split(':')[0]);
+            const m2 = parseInt(horaFin.split(':')[1]);
+            const minutosInicio = h1 * 60 + m1;
+            const minutosFin = h2 * 60 + m2;
+            let diffEnMinutos = 0;
+            if (minutosFin > minutosInicio) {
+                diffEnMinutos = minutosFin - minutosInicio;
+            } else if (minutosFin < minutosInicio) {
+                diffEnMinutos = (1440 - minutosInicio) + minutosFin;
+            }
+            return (diffEnMinutos / 60);
+        } catch (e) {
+            return 0;
+        }
+    },
+
+    construirObjetoDeGuardado: function() {
+        const form = App.ui.form;
+        const formData = new FormData(form);
+        const registro = Object.fromEntries(formData.entries());
+        
+        if (registro['RUT']) {
+            registro['RUT'] = registro['RUT'].replace(/\./g, '').toUpperCase();
+        }
+
+        const calidad = registro['CALIDAD CONTRACTUAL'];
+        const apellidos = registro['APELLIDOS'] || '';
+        const nombres = registro['NOMBRES'] || '';
+        registro['NOMBRE COMPLETO'] = (apellidos + ' ' + nombres).trim();
+       
+        if (App.state.modoCambioCalidad) {
+            registro['ID_ORIGINAL_MOVIMIENTO'] = App.state.idRegistroOriginal;
+            registro['ESTADO DE TRASPASO A NOMINA'] = 'MOVIDO A NOMINA'; 
+            registro['ESTADO INGRESO'] = 'CAMBIO DE MODALIDAD';
+        }
+
+        // Lógica de campos opcionales y Horario
+        const VALOR_OPCIONAL_VACIO = '-';
+        const VALOR_NO_APLICABLE = 'NO APLICA';
+
+        const obtenerValorOpcional = (contenedor, nombreCampo) => {
+            const input = contenedor.querySelector(`[name="${nombreCampo}"]`);
+            return input ? (input.value || VALOR_OPCIONAL_VACIO) : VALOR_OPCIONAL_VACIO;
+        };
+
+        if (calidad === 'ADMINISTRACION DE FONDOS') {
+            const fondosContainer = document.getElementById('campos-fondos');
+            registro['CARGO'] = obtenerValorOpcional(fondosContainer, 'CARGO');
+            registro['FUNCION'] = obtenerValorOpcional(fondosContainer, 'FUNCION'); 
+        } else {
+            registro['CARGO'] = VALOR_NO_APLICABLE;
+        }
+
+        const mapeo = App.config.mapeoCalidad[calidad];
+        if (mapeo && mapeo.idSelectorPeriodo) {
+            const selectorPeriodo = document.getElementById(mapeo.idSelectorPeriodo);
+            const valorPeriodo = selectorPeriodo ? selectorPeriodo.value : '';
+            const contenedorVisible = document.getElementById(`campos-${mapeo.idContenedor}`);
+            if (contenedorVisible) {
+                const camposAnuales = ['FUNCION', 'PROGRAMA', 'CODIGO PROGRAMA'];
+                const camposSem1 = ['FUNCION PRIMER SEMESTRE', 'PROGRAMA PRIMER SEMESTRE', 'CODIGO PROGRAMA PRIMER SEMESTRE'];
+                const camposSem2 = ['FUNCION SEGUNDO SEMESTRE', 'PROGRAMA SEGUNDO SEMESTRE', 'CODIGO PROGRAMA SEGUNDO SEMESTRE'];
+                if (valorPeriodo === 'anual') {
+                    camposAnuales.forEach(campo => registro[campo] = obtenerValorOpcional(contenedorVisible, campo));
+                    [...camposSem1, ...camposSem2].forEach(c => registro[c] = VALOR_OPCIONAL_VACIO);
+                } else if (valorPeriodo === 'semestral') {
+                    camposSem1.forEach(campo => registro[campo] = obtenerValorOpcional(contenedorVisible, campo));
+                    camposSem2.forEach(campo => registro[campo] = obtenerValorOpcional(contenedorVisible, campo));
+                    camposAnuales.forEach(c => registro[c] = VALOR_OPCIONAL_VACIO);
+                }
+            }
+        }
+
+        const camposInaplicables = App.config.camposInaplicablesPorCalidad[calidad];
+        if (camposInaplicables) {
+            camposInaplicables.forEach(campo => { registro[campo] = VALOR_NO_APLICABLE; });
+        }
+
+        Object.keys(App.config.selectsConOtro).forEach(selectId => {
+            if (registro[selectId] === 'OTRO') {
+                const otroInputId = App.config.selectsConOtro[selectId];
+                registro[selectId] = document.getElementById(otroInputId).value || VALOR_OPCIONAL_VACIO;
+            }
+            delete registro[`${selectId}_OTRO`];
+        });
+
+        if (registro['DISCAPACIDAD'] === 'NO') {
+            registro['DESCRIPCION DISCAPACIDAD'] = VALOR_NO_APLICABLE;
+            registro['PORCENTAJE DISCAPACIDAD'] = VALOR_NO_APLICABLE;
+        }
+        if (registro['PUEBLOS ORIGINARIOS'] === 'NO') {
+            registro['PUEBLO ORIGINARIO DETALLE'] = VALOR_NO_APLICABLE;
+        }
+
+        registro['HORARIO'] = App.ui.horario.horarioOcultoInput.value || 'NO APLICA';
+
+        const camposOpcionales = [ 'N CUENTA', 'OBSERVACIONES', 'OTROS ESTUDIOS'];
+        camposOpcionales.forEach(campo => {
+            if (registro.hasOwnProperty(campo) && !registro[campo]) {
+                registro[campo] = VALOR_OPCIONAL_VACIO;
+            }
+        });
+
+        return registro;
+    },
+
+    // --- 6. LOCAL STORAGE (CACHÉ MEJORADO) ---
+    guardarEnCache: function(llave, datos, ultimoId, totalFilas) {
+        try {
+            const objetoCache = {
+                timestamp: new Date().getTime(),
+                cantidad: datos.length,
+                ultimoId: ultimoId,
+                totalFilas: totalFilas,
+                payload: datos
+            };
+            localStorage.setItem(llave, JSON.stringify(objetoCache));
+        } catch(e) {
+            console.warn("No se pudo guardar en LocalStorage (posible límite excedido):", e);
+        }
+    },
+
+    obtenerDeCache: function(llave) {
+        try {
+            const cache = localStorage.getItem(llave);
+            return cache ? JSON.parse(cache) : null;
+        } catch(e) {
+            return null;
+        }
+    }
+};
+</script>

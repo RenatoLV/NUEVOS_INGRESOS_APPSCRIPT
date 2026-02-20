@@ -1,0 +1,92 @@
+<template id="template-bloque-horario">
+  <div class="bloque-horario-item">
+    <input type="text" class="input-horas form-control form-control-sm" placeholder="Hrs" readonly>
+    <select class="select-dia-inicio form-control form-control-sm">
+      <option value="">De...</option>
+      <option>LUNES</option><option>MARTES</option><option>MIÉRCOLES</option><option>JUEVES</option><option>VIERNES</option><option>SÁBADO</option><option>DOMINGO</option>
+    </select>
+    <select class="select-dia-fin form-control form-control-sm">
+      <option value="">a...</option>
+      <option>LUNES</option><option>MARTES</option><option>MIÉRCOLES</option><option>JUEVES</option><option>VIERNES</option><option>SÁBADO</option><option>DOMINGO</option>
+    </select>
+    <input type="time" class="input-hora-inicio form-control form-control-sm">
+    <input type="time" class="input-hora-fin form-control form-control-sm">
+    <button type="button" class="btn-remove-row" onclick="this.parentElement.remove(); App.methods.horario.actualizarResumen();">X</button>
+  </div>
+</template>
+
+<template id="template-turno-5x2-tramo">
+  <div class="turno-5x2-tramo-item">
+    <div class="turno-5x2-tramo-main">
+      <div class="turno-5x2-dias-group">
+        <input type="number" class="input-dias-5x2 form-control" min="1" max="7" placeholder="N°" oninput="App.methods.horario.turno.gestionarInputDias(this)">
+        <label>DÍAS</label>
+      </div>
+      <div class="turno-5x2-horas-group">
+        <input type="time" class="input-hora-inicio-5x2 form-control" oninput="App.methods.horario.actualizarResumen()">
+        <span class="turno-hora-separador">:</span>
+        <input type="time" class="input-hora-fin-5x2 form-control" oninput="App.methods.horario.actualizarResumen()">
+      </div>
+      <button type="button" class="btn-remove-row" onclick="App.methods.horario.turno.eliminarTramo(this)">X</button>
+    </div>
+    <a href="#" class="turno-day-toggle-link" onclick="App.methods.horario.turno.toggleDayPicker(this); return false;">
+      Presione en caso de que aplique seleccionar días
+    </a>
+    <div class="turno-day-picker-container" style="display: none;">
+      <select multiple="multiple" class="turno-day-select" style="display: none;"></select>
+      <div class="turno-day-picker-grid"></div>
+    </div>
+  </div>
+</template>
+
+<template id="template-turno-5x2-container">
+  <div class="turno-5x2-container-item">
+    <div class="turno-5x2-header">
+      <h4 class="turno-5x2-title">Turno</h4>
+      <button type="button" class="btn-remove-row" onclick="this.closest('.turno-5x2-container-item').remove(); App.methods.horario.actualizarResumen();" title="Eliminar Turno Completo">X</button>
+    </div>
+    <div class="turno-5x2-tramos-wrapper"></div>
+    <button type="button" class="btn btn-secondary btn-sm btn-agregar-tramo" onclick="App.methods.horario.turno.agregarTramo(this)">+ Agregar Tramo</button>
+  </div>
+</template>
+
+<template id="template-fila-tallerista">
+  <div class="tallerista-fila-item">
+    <button type="button" class="btn-remove-row" onclick="this.parentElement.remove(); App.methods.horario.actualizarResumen();"> X </button>
+    <div class="tallerista-grid-top">
+      <div class="form-group mb-0">
+        <label>N° Actividades</label>
+        <input type="number" class="input-actividades form-control" placeholder="Ej: 15" oninput="App.methods.horario.actualizarResumen()">
+      </div>
+      <div class="form-group mb-0">
+        <label>Descripción</label>
+        <input type="text" class="input-descripcion form-control" placeholder="Ej: Taller de Pintura" oninput="App.methods.horario.actualizarResumen()">
+      </div>
+      <div class="form-group mb-0">
+        <label>N° Reuniones</label>
+        <input type="number" class="input-reuniones form-control" placeholder="Ej: 2" oninput="App.methods.horario.actualizarResumen()">
+      </div>
+    </div>
+    <div class="tallerista-grid-bottom">
+      <div class="form-group mb-0">
+        <label>Período</label>
+        <select class="select-periodo-tipo form-control" onchange="App.methods.horario.tallerista.gestionarVisibilidadPeriodo(this); App.methods.horario.actualizarResumen();">
+          <option value="POR PERIODO">POR PERIODO</option>
+          <option value="MENSUAL">MENSUAL</option>
+        </select>
+      </div>
+      <div class="periodo-detalle-container w-100">
+        <div class="periodo-fechas">
+          <label>Desde:</label>
+          <input type="date" class="input-periodo-inicio form-control" oninput="App.methods.horario.actualizarResumen()">
+          <label>Hasta:</label>
+          <input type="date" class="input-periodo-fin form-control" oninput="App.methods.horario.actualizarResumen()">
+        </div>
+        <div class="periodo-meses" style="display: none;">
+          <select multiple="multiple" class="tallerista-months" style="width: 100%; display: none;"></select>
+          <div class="month-picker-grid"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>

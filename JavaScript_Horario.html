@@ -1,0 +1,1164 @@
+<script>
+  /* =======================================================================
+      LÓGICA JAVASCRIPT DEL HORARIO (CORREGIDA - SIN ERROR ACTUALIZARGRIDS)
+      =======================================================================
+  */
+
+  // --- VARIABLES Y UTILIDADES GLOBALES ---
+  const diasSemana = ["LUNES", "MARTES", "MIÉRCOLES", "JUEVES", "VIERNES", "SÁBADO", "DOMINGO"];
+  const TEXTO_247 = "DISPONIBILIDAD 24/7 NO QUEDANDO SUJETO A HORARIO ESTABLECIDO SIN PERJUICIO DE ESTO, EL CUMPLIMIENTO DE SU FUNCIÓN SERA DE ACUERDO A PLANIFICACIÓN SEMANAL ENVIADA POR EL SUPERVISOR DEL PROGRAMA, QUIEN VELARÁ POR EL CUMPLIMIENTO DE LAS FUNCIONES ESTABLECIDAS.";
+  let availableProgramMonths = [];
+
+  // Función para caché de meses (Optimizada)
+  function updateAvailableMonthsCache() {
+    const startDateInput = document.getElementById('FECHA INGRESO');
+    const endDateInput = document.getElementById('FECHA DE TERMINO');
+    
+    // Validación de seguridad para evitar errores si los inputs no existen
+    if (!startDateInput || !endDateInput) return;
+
+    availableProgramMonths = [];
+
+    if (startDateInput.value && endDateInput.value) {
+      // Usamos UTC para evitar problemas de zona horaria
+      const start = new Date(startDateInput.value); 
+      const end = new Date(endDateInput.value);
+      
+      // Validación lógica de fechas
+      if (isNaN(start.getTime()) || isNaN(end.getTime()) || start > end) return;
+
+      // Configuramos para iterar desde el día 1 de cada mes para evitar saltos por días 31
+      let current = new Date(start.getFullYear(), start.getMonth(), 1);
+      const endMonthDate = new Date(end.getFullYear(), end.getMonth(), 1);
+      
+      // Límite de seguridad: Evitar bucle infinito si hay error en fechas (máx 5 años)
+      let safetyCounter = 0;
+      const MAX_MONTHS = 60; 
+
+      while (current <= endMonthDate && safetyCounter < MAX_MONTHS) {
+        const monthYearString = current.toLocaleDateString('es-ES', {
+          month: 'long',
+          year: 'numeric'
+        }).toUpperCase();
+        
+        if (!availableProgramMonths.includes(monthYearString)) {
+          availableProgramMonths.push(monthYearString);
+        }
+        
+        // Avanzar al mes siguiente
+        current.setMonth(current.getMonth() + 1);
+        safetyCounter++;
+      }
+    }
+    
+    // CORRECCIÓN CLAVE: Verificación segura antes de llamar a la función interna
+    // Solo llamamos si el objeto y la función existen realmente
+    if (typeof App !== 'undefined' && 
+        App.methods && 
+        App.methods.horario && 
+        App.methods.horario.tallerista && 
+        typeof App.methods.horario.tallerista.actualizarGridsDeMeses === 'function') {
+      
+      App.methods.horario.tallerista.actualizarGridsDeMeses();
+    }
+  }
+
+  // --- FUNCIONES MATEMÁTICAS LOCALES ---
+  function calcularDiferenciaHoras(horaInicio, horaFin) {
+      if (!horaInicio || !horaFin) return 0;
+      try {
+          const [h1, m1] = horaInicio.split(':').map(Number);
+          const [h2, m2] = horaFin.split(':').map(Number);
+          const min1 = h1 * 60 + m1;
+          const min2 = h2 * 60 + m2;
+          let diff = 0;
+          if (min2 > min1) diff = min2 - min1;
+          else if (min2 < min1) diff = (1440 - min1) + min2; // Paso de medianoche
+          else return 0;
+          return diff / 60;
+      } catch (e) { return 0; }
+  }
+
+  function contarDiasSemana(diaInicio, diaFin) {
+      if (!diaInicio) return 0;
+      const s = diasSemana.indexOf(diaInicio);
+      const e = diasSemana.indexOf(diaFin || diaInicio);
+      if (s === -1 || e === -1 || e < s) return (diaInicio === diaFin && s !== -1) ? 1 : 0;
+      return e - s + 1;
+  }
+
+// --- IIFE PARA DEFINICIÓN DEL MÓDULO ---
+(function() {
+  const horarioManager = {
+    totalHorasSemanaCache: 0,
+    modoEdicionActivo: true,
+    bypassCalculation: false, 
+
+    // 1. UI: REFERENCIAS A LOS ELEMENTOS DEL DOM
+    ui: {
+      get mainJornadaInput() { return document.getElementById('JORNADA'); }, 
+      get mainHorarioInput() { return document.getElementById('HORARIO'); }, 
+      get previewResumenLbl() { return document.getElementById('resumen-horario-visual'); },
+      
+      // Elementos del MODAL
+      get jornadaSelect() { return document.getElementById('modalJornadaSelect'); },
+      get resumenTextarea() { return document.getElementById('modalResumenHorario'); },
+      get variableContainer() { return document.getElementById('modalVariableContainer'); },
+      get sinMarcajeContainer() { return document.getElementById('modalSinMarcajeContainer'); },
+      get sinMarcajeInput() { return document.getElementById('modalSinMarcajeInput'); },
+      
+      // Contenedores Modal
+      get bloquesContainer() { return document.getElementById('modalBloquesContainer'); },
+      get turno5x2Container() { return document.getElementById('modalTurno5x2Container'); },
+      get talleristaFilasContainer() { return document.getElementById('modalTalleristaFilasContainer'); },
+      
+      // Controles
+      get check247() { return document.getElementById('check247'); },
+      get check247Container() { return document.getElementById('check247Container'); },
+      get checkFestivos() { return document.getElementById('checkFestivos'); },
+      get checkFestivosContainer() { return document.getElementById('checkFestivosContainer'); },
+      get checkMaxDias() { return document.getElementById('checkMaxDias'); },
+      get checkMaxDiasContainer() { return document.getElementById('checkMaxDiasContainer'); },
+      get inputMaxDias() { return document.getElementById('inputMaxDias'); },
+      get btnAgregarTramo() { return document.getElementById('btnAgregarTramo'); }
+    },
+
+    // =========================================================
+    // LÓGICA DE BLOQUEO Y ESTADO
+    // =========================================================
+
+    inicializarVistaSoloLectura: function(horarioTexto, jornadaTexto) {
+      this.modoEdicionActivo = false;
+      const vistaPrevia = document.getElementById('vista-previa-texto-horario');
+      if (vistaPrevia) {
+          const tituloJornada = jornadaTexto ? `[${jornadaTexto}]\n` : '';
+          vistaPrevia.textContent = tituloJornada + (horarioTexto || "Sin horario definido.");
+      }
+      
+      if (this.ui.mainJornadaInput) this.ui.mainJornadaInput.value = jornadaTexto || '';
+      if (this.ui.mainHorarioInput) this.ui.mainHorarioInput.value = horarioTexto || '';
+      
+      const divBloqueo = document.getElementById('bloqueo-edicion-horario');
+      const divControles = document.getElementById('controles-edicion-horario');
+      if(divBloqueo) divBloqueo.style.display = 'block';
+      if(divControles) divControles.style.display = 'none';
+      this.bypassCalculation = true; 
+    },
+
+    habilitarEdicion: function() {
+      if (!confirm("Al habilitar la edición, podrá modificar la jornada actual.\n\nNota: Si cambia el tipo de jornada, se perderán los datos anteriores.\n\n¿Desea continuar?")) return;
+      
+      this.modoEdicionActivo = true;
+      document.getElementById('bloqueo-edicion-horario').style.display = 'none';
+      document.getElementById('controles-edicion-horario').style.display = 'block';
+      
+      const jornadaActual = this.ui.mainJornadaInput ? this.ui.mainJornadaInput.value : '';
+      const horarioActual = this.ui.mainHorarioInput ? this.ui.mainHorarioInput.value : '';
+
+      this.bypassCalculation = true;
+
+      if (jornadaActual) {
+          this.gestionarVisibilidadInline(jornadaActual);
+          if(this.ui.previewResumenLbl) this.ui.previewResumenLbl.value = horarioActual;
+      }
+      this.sincronizarModal(true);
+    },
+
+    resetearVistaCompleta: function() {
+      this.modoEdicionActivo = true;
+      this.bypassCalculation = false; 
+      
+      document.getElementById('bloqueo-edicion-horario').style.display = 'none';
+      document.getElementById('controles-edicion-horario').style.display = 'block';
+      this.ui.mainJornadaInput.value = "";
+      this.ui.mainHorarioInput.value = "";
+      if(this.ui.previewResumenLbl) this.ui.previewResumenLbl.textContent = "";
+      
+      this.ui.jornadaSelect.value = "";
+      this.gestionarVisibilidad();
+      this.gestionarVisibilidadInline("");
+    },
+
+    // =========================================================
+    // LÓGICA VISUAL INLINE (SOLO VISIBILIDAD, SIN RENDERIZADO)
+    // =========================================================
+    gestionarVisibilidadInline: function(jornadaValue) {
+        if (this.ui.mainJornadaInput.value !== jornadaValue && jornadaValue !== "") {
+             this.bypassCalculation = false; 
+        }
+
+        const panel = document.getElementById('panel-configuracion-horario');
+        const containerEstandar = document.getElementById('container-horario-estandar');
+        const containerTurnos = document.getElementById('container-horario-turnos');
+        const containerSinMarcaje = document.getElementById('container-horario-sin-marcaje');
+        const containerTallerista = document.getElementById('container-horario-tallerista');
+        
+        if (panel) panel.style.display = 'none';
+        [containerEstandar, containerTurnos, containerSinMarcaje, containerTallerista].forEach(el => {
+            if (el) el.style.display = 'none';
+        });
+
+        if (!jornadaValue) {
+            if (this.ui.mainHorarioInput) this.ui.mainHorarioInput.value = '';
+            if (document.getElementById('resumen-horario-visual')) document.getElementById('resumen-horario-visual').value = '';
+            return;
+        }
+
+        if (panel) panel.style.display = 'block';
+
+        // Solo mostramos el botón correspondiente
+        if (['JORNADA COMPLETA', 'MEDIA JORNADA', 'TIEMPO PARCIAL'].includes(jornadaValue)) {
+            if (containerEstandar) containerEstandar.style.display = 'block';
+        } else if (jornadaValue === 'POR TURNOS') {
+            if (containerTurnos) containerTurnos.style.display = 'block';
+        } else if (jornadaValue === 'SIN MARCAJE') {
+            if (containerSinMarcaje) containerSinMarcaje.style.display = 'block';
+            if (!this.bypassCalculation) {
+                const defaultText = "NO SUJETO A CONTROL DE HORARIO";
+                if (this.ui.mainHorarioInput) this.ui.mainHorarioInput.value = defaultText;
+                if (document.getElementById('resumen-horario-visual')) document.getElementById('resumen-horario-visual').value = defaultText;
+            }
+        } else if (jornadaValue === 'TALLERISTA O MONITOR') {
+            if (containerTallerista) containerTallerista.style.display = 'block';
+        }
+        
+        if (!this.bypassCalculation) {
+            setTimeout(() => this.actualizarResumen(), 100);
+        }
+    },
+
+    // =========================================================
+    // LÓGICA DEL MODAL
+    // =========================================================
+
+    sincronizarModal: function(desdeHabilitarEdicion = false) {
+        const jornadaActual = this.ui.mainJornadaInput ? this.ui.mainJornadaInput.value : '';
+        const horarioTexto = this.ui.mainHorarioInput ? this.ui.mainHorarioInput.value : '';
+
+        if (!desdeHabilitarEdicion) {
+            this.ui.jornadaSelect.value = "";
+            this.ui.bloquesContainer.innerHTML = "";
+            this.ui.turno5x2Container.innerHTML = "";
+            this.ui.talleristaFilasContainer.innerHTML = "";
+        }
+        
+        if (jornadaActual && this.ui.jornadaSelect) {
+            this.ui.jornadaSelect.value = jornadaActual;
+        }
+
+        this.gestionarVisibilidad(); 
+
+        // PARSEO BÁSICO PARA RECUPERAR DATOS EN EL MODAL
+        if (horarioTexto) {
+             if (jornadaActual === 'POR TURNOS') {
+                 if(this.turno.cargarHorario) this.turno.cargarHorario(horarioTexto);
+             } 
+             else if (jornadaActual === 'TALLERISTA O MONITOR') {
+                 if(this.tallerista.cargarHorario) this.tallerista.cargarHorario(horarioTexto);
+             }
+             else if (['JORNADA COMPLETA', 'MEDIA JORNADA', 'TIEMPO PARCIAL'].includes(jornadaActual)) {
+                 this.cargarHorarioBloques(horarioTexto, jornadaActual);
+             }
+             else if (jornadaActual === 'SIN MARCAJE' && this.ui.sinMarcajeInput) {
+                 this.ui.sinMarcajeInput.value = horarioTexto;
+             }
+        } else {
+             // Si no hay texto, inicializar con defaults
+             if (jornadaActual === 'JORNADA COMPLETA' && this.ui.bloquesContainer.children.length === 0) {
+                 this.insertarBloqueHelper('LUNES', 'JUEVES', '08:30', '17:30', this.ui.bloquesContainer);
+                 this.insertarBloqueHelper('VIERNES', 'VIERNES', '08:30', '16:30', this.ui.bloquesContainer);
+             }
+        }
+        
+        if (!this.bypassCalculation) {
+            this.actualizarResumen();
+        }
+    },
+
+    guardarDesdeModal: function() {
+        const jornada = this.ui.jornadaSelect.value;
+        const resumen = this.ui.resumenTextarea.value;
+        if (!jornada) {
+            alert("Debe seleccionar un Tipo de Jornada.");
+            return;
+        }
+        
+        this.bypassCalculation = false;
+
+        if(this.ui.mainJornadaInput) {
+            this.ui.mainJornadaInput.value = jornada;
+            this.gestionarVisibilidadInline(jornada);
+        }
+        if(this.ui.mainHorarioInput) this.ui.mainHorarioInput.value = resumen;
+        
+        const visualResumen = document.getElementById('resumen-horario-visual');
+        if(visualResumen) visualResumen.value = resumen;
+        
+        if(this.ui.previewResumenLbl) this.ui.previewResumenLbl.textContent = resumen.substring(0, 100) + (resumen.length > 100 ? "..." : "");
+        
+        $('#horarioModal').modal('hide');
+        
+        // --- FIX CRÍTICO: Bloquear recálculo automático inmediato ---
+        // Evita que el timeout de gestionarVisibilidadInline sobrescriba lo que acabamos de guardar
+        this.bypassCalculation = true;
+    },
+
+    gestionarVisibilidad: function() {
+        if(!this.ui.jornadaSelect) return;
+        const jornada = this.ui.jornadaSelect.value;
+        if(this.ui.resumenTextarea) this.ui.resumenTextarea.value = '';
+
+        [
+            document.getElementById('modalTurnosContainer'),
+            document.getElementById('modalVariableContainer'),
+            document.getElementById('modalSinMarcajeContainer'),
+            document.getElementById('modalTalleristaContainer')
+        ].forEach(el => { if(el) el.style.display = 'none'; });
+
+        if (['JORNADA COMPLETA', 'MEDIA JORNADA', 'TIEMPO PARCIAL'].includes(jornada)) {
+            this.gestionarVisibilidadBloques(jornada);
+        } else if (jornada === 'POR TURNOS') {
+            this.turno.gestionarVisibilidad();
+        } else if (jornada === 'TALLERISTA O MONITOR') {
+            this.tallerista.gestionarVisibilidad();
+        } else if (jornada === 'SIN MARCAJE') {
+            if(this.ui.sinMarcajeContainer) this.ui.sinMarcajeContainer.style.display = 'block';
+        }
+
+        if (!this.bypassCalculation) {
+            setTimeout(() => this.actualizarResumen(), 0);
+        }
+    },
+
+    actualizarResumen: function() {
+        if (this.bypassCalculation) {
+            return this.ui.mainHorarioInput ? this.ui.mainHorarioInput.value : "";
+        }
+
+        this.totalHorasSemanaCache = 0;
+        const isInModal = $('#horarioModal').hasClass('show');
+        const jornada = isInModal ? (this.ui.jornadaSelect ? this.ui.jornadaSelect.value : '') : (this.ui.mainJornadaInput ? this.ui.mainJornadaInput.value : '');
+        
+        if(!jornada) return "";
+        
+        let resumen = '';
+
+        if (['JORNADA COMPLETA', 'MEDIA JORNADA', 'TIEMPO PARCIAL'].includes(jornada)) {
+            resumen = this.generarResumenBloques(jornada, isInModal);
+        } else if (jornada === 'POR TURNOS') {
+            resumen = this.turno.generarResumen(isInModal);
+        } else if (jornada === 'TALLERISTA O MONITOR') {
+            resumen = this.tallerista.generarResumen(isInModal);
+        } else if (jornada === 'SIN MARCAJE') {
+            resumen = isInModal ? (this.ui.sinMarcajeInput ? this.ui.sinMarcajeInput.value : '') : "NO SUJETO A CONTROL DE HORARIO";
+        }
+
+        if(this.ui.resumenTextarea && isInModal) this.ui.resumenTextarea.value = resumen;
+        
+        const visualResumen = document.getElementById('resumen-horario-visual');
+        if(visualResumen) visualResumen.value = resumen;
+        
+        if(this.ui.mainHorarioInput) this.ui.mainHorarioInput.value = resumen;
+
+        return resumen;
+    },
+
+    // =========================================================
+    // SUB-MÓDULO: BLOQUES (Estándar)
+    // =========================================================
+    gestionarVisibilidadBloques: function(jornada) {
+        if (this.ui.variableContainer) this.ui.variableContainer.style.display = 'block';
+        if (this.ui.check247Container) this.ui.check247Container.style.display = 'block';
+
+        const showParcialOpts = (jornada === 'TIEMPO PARCIAL');
+        if(this.ui.checkFestivosContainer) this.ui.checkFestivosContainer.style.display = showParcialOpts ? 'block' : 'none';
+        if(this.ui.checkMaxDiasContainer) this.ui.checkMaxDiasContainer.style.display = showParcialOpts ? 'block' : 'none';
+
+        if (!showParcialOpts) {
+            if(this.ui.checkFestivos) this.ui.checkFestivos.checked = false;
+            if (this.ui.checkMaxDias) {
+                this.ui.checkMaxDias.checked = false;
+                this.toggleMaxDias(false);
+            }
+        }
+        
+        if (this.ui.bloquesContainer && this.ui.bloquesContainer.children.length === 0 && !this.bypassCalculation) {
+             if (jornada === 'JORNADA COMPLETA') {
+                 this.insertarBloqueHelper('LUNES', 'JUEVES', '08:30', '17:30', this.ui.bloquesContainer);
+                 this.insertarBloqueHelper('VIERNES', 'VIERNES', '08:30', '16:30', this.ui.bloquesContainer);
+             } else {
+                 this.insertarBloqueHelper('', '', '', '', this.ui.bloquesContainer);
+             }
+        }
+    },
+
+    generarResumenBloques: function(jornada, isInModal = true) {
+        if (this.ui.check247 && this.ui.check247.checked) {
+            return TEXTO_247;
+        }
+        let lineas = [];
+        let totalHorasSemana = 0;
+        
+        const container = this.ui.bloquesContainer; 
+        const bloques = container ? container.querySelectorAll('.bloque-horario-item') : [];
+        
+        bloques.forEach(b => {
+            const diaInicio = b.querySelector('.select-dia-inicio').value;
+            const diaFin = b.querySelector('.select-dia-fin').value;
+            const horaInicio = b.querySelector('.input-hora-inicio').value;
+            const horaFin = b.querySelector('.input-hora-fin').value;
+            
+            let horasBloque = 0;
+            if(diaInicio && horaInicio && horaFin) {
+                const dias = contarDiasSemana(diaInicio, diaFin || diaInicio);
+                const horasDia = calcularDiferenciaHoras(horaInicio, horaFin);
+                horasBloque = parseFloat((dias * horasDia).toFixed(2));
+                const inputH = b.querySelector('.input-horas');
+                if(inputH) inputH.value = horasBloque;
+            }
+
+            if (diaInicio && horaInicio && horaFin) {
+                let linea = horasBloque > 0 ? `(${horasBloque}hrs) ` : '';
+                linea += diaInicio;
+                if (diaFin && diaFin !== diaInicio) linea += ` - ${diaFin}`;
+                linea += ` ${horaInicio} - ${horaFin}`;
+                lineas.push(linea);
+                totalHorasSemana += horasBloque;
+            }
+        });
+
+        this.totalHorasSemanaCache = totalHorasSemana;
+        let extras = '';
+        if (this.ui.checkFestivos && this.ui.checkFestivos.checked && this.ui.checkFestivosContainer.style.display !== 'none') {
+            extras += ' (incluyendo festivos)';
+        }
+        if (this.ui.checkMaxDias && this.ui.checkMaxDias.checked && this.ui.inputMaxDias.value) {
+            extras += ` (con un máximo de ${this.ui.inputMaxDias.value} días de trabajo)`;
+        }
+
+        if (totalHorasSemana > 0) {
+            return `TOTAL SEMANAL: ${parseFloat(totalHorasSemana.toFixed(2))} hrs${extras}\n` + lineas.join('\n');
+        }
+        return lineas.join('\n');
+    },
+
+    cargarHorarioBloques: function(horarioString, jornada) {
+        if (horarioString === TEXTO_247) {
+            if (this.ui.check247) {
+                this.ui.check247.checked = true;
+                this.toggle247(true);
+            }
+            return;
+        }
+        if (horarioString.includes('(incluyendo festivos)')) {
+            if (this.ui.checkFestivos) this.ui.checkFestivos.checked = true;
+        }
+        const matchMax = horarioString.match(/\(con un máximo de (\d+) días/);
+        if (matchMax && this.ui.checkMaxDias) {
+            this.ui.checkMaxDias.checked = true;
+            this.ui.inputMaxDias.value = matchMax[1];
+            this.toggleMaxDias(true);
+        }
+
+        const esNormal = horarioString.includes('HORARIO NORMAL'); 
+        if (jornada === 'JORNADA COMPLETA' && (!horarioString || esNormal)) {
+             // Default
+        } else {
+            this.ui.bloquesContainer.innerHTML = '';
+            const lineas = horarioString.split('\n').filter(l => l.trim() !== '' && !l.toUpperCase().startsWith('TOTAL SEMANAL'));
+            
+            lineas.forEach((linea) => {
+                 this.insertarBloqueHelper('', '', '', '', this.ui.bloquesContainer);
+                 const bloque = this.ui.bloquesContainer.lastElementChild;
+                 
+                 const regex = /^(?:\((\d+\.?\d*)hrs\)\s*)?([A-ZÁÉÍÓÚÑ]+)(?:\s*-\s*([A-ZÁÉÍÓÚÑ]+))?\s*(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})/i;
+                 const m = linea.match(regex);
+                 if (m && bloque) {
+                     bloque.querySelector('.input-horas').value = m[1] || '';
+                     bloque.querySelector('.select-dia-inicio').value = m[2].toUpperCase();
+                     bloque.querySelector('.select-dia-fin').value = (m[3] || m[2]).toUpperCase();
+                     bloque.querySelector('.input-hora-inicio').value = m[4];
+                     bloque.querySelector('.input-hora-fin').value = m[5];
+                 }
+            });
+        }
+    },
+
+    toggle247: function(isChecked) {
+        const els = this.ui.bloquesContainer.querySelectorAll('input, select, button');
+        els.forEach(el => el.disabled = isChecked);
+        if (this.ui.btnAgregarTramo) this.ui.btnAgregarTramo.style.display = isChecked ? 'none' : 'inline-block';
+        if (this.ui.checkFestivos) this.ui.checkFestivos.disabled = isChecked;
+        this.bypassCalculation = false;
+        this.actualizarResumen();
+    },
+
+    toggleMaxDias: function(isChecked) {
+        if(this.ui.inputMaxDias) this.ui.inputMaxDias.style.display = isChecked ? 'inline-block' : 'none';
+        if (!isChecked && this.ui.inputMaxDias) this.ui.inputMaxDias.value = '';
+        this.bypassCalculation = false;
+        this.actualizarResumen();
+    },
+
+    agregarBloque: function() {
+         this.insertarBloqueHelper('', '', '', '', this.ui.bloquesContainer);
+    },
+
+    insertarBloqueHelper: function(diaIni, diaFin, horaIni, horaFin, targetContainer) {
+        if(!targetContainer) return;
+        this.bypassCalculation = false;
+
+        const template = document.getElementById('template-bloque-horario');
+        const clone = template.content.cloneNode(true);
+        const bloque = clone.querySelector('.bloque-horario-item');
+        
+        bloque.querySelector('.select-dia-inicio').value = diaIni;
+        bloque.querySelector('.select-dia-fin').value = diaFin;
+        bloque.querySelector('.input-hora-inicio').value = horaIni;
+        bloque.querySelector('.input-hora-fin').value = horaFin;
+
+        clone.querySelectorAll('select, input').forEach(el => {
+            if(el.classList.contains('input-horas')) return; 
+            el.addEventListener('change', () => { this.bypassCalculation = false; this.calcularHorasBloque(bloque); });
+            el.addEventListener('input', () => { this.bypassCalculation = false; this.calcularHorasBloque(bloque); });
+        });
+        
+        targetContainer.appendChild(clone);
+        if (diaIni && horaIni && horaFin) {
+            this.calcularHorasBloque(bloque);
+        }
+    },
+
+    calcularHorasBloque: function(bloque) {
+        const diaInicio = bloque.querySelector('.select-dia-inicio').value;
+        const diaFin = bloque.querySelector('.select-dia-fin').value;
+        const hInicio = bloque.querySelector('.input-hora-inicio').value;
+        const hFin = bloque.querySelector('.input-hora-fin').value;
+        
+        if(diaInicio && hInicio && hFin) {
+            const dias = contarDiasSemana(diaInicio, diaFin || diaInicio);
+            const horasDia = calcularDiferenciaHoras(hInicio, hFin);
+            bloque.querySelector('.input-horas').value = parseFloat((dias * horasDia).toFixed(2));
+        }
+        this.actualizarResumen();
+    },
+
+    // =========================================================
+    // SUB-MÓDULO: TURNOS (ACTUALIZADO)
+    // =========================================================
+    turno: {
+        // --- UI Getters Locales ---
+        get container() { return document.getElementById('modalTurnosContainer'); },
+        get turno5x2Container() { return document.getElementById('modalTurno5x2Container'); },
+        get btnAgregarTurno() { return document.getElementById('btnAgregarTurno5x2_Master'); },
+        
+        // --- UI Dinámico ---
+        get dynamicContainer() { return document.getElementById('dynamicTurnContainer'); },
+        get checkDynamic() { return document.getElementById('checkDynamicTurn'); },
+        get dynamicTextContainer() { return document.getElementById('dynamicTurnTextContainer'); },
+        get dynamicGlosa() { return document.getElementById('dynamicTurnGlosa'); },
+
+        gestionarVisibilidad: function() {
+            this.container.style.display = 'block';
+            this.turno5x2Container.style.display = 'block';
+            this.btnAgregarTurno.style.display = 'block';
+            if(this.dynamicContainer) this.dynamicContainer.style.display = 'block';
+            if(this.turno5x2Container.children.length === 0) this.agregarTurno(); 
+        },
+
+        // --- LÓGICA DINÁMICA ---
+        toggleDynamicTurn: function(isChecked) {
+            // 1. Mostrar/Ocultar la glosa
+            if (this.dynamicTextContainer) {
+                this.dynamicTextContainer.style.display = isChecked ? 'block' : 'none';
+                if (isChecked && !this.dynamicGlosa.value.trim()) {
+                    this.dynamicGlosa.value = "Turnos sujetos a la combinación de horarios de 4 días de 9 horas y 1 día de 8 horas entre las opciones especificadas para así cumplir 44 hrs.";
+                }
+            }
+
+            // 2. Ocultar/Mostrar el input de "Días" en todas las filas existentes
+            const gruposDias = this.turno5x2Container.querySelectorAll('.turno-5x2-dias-group');
+            gruposDias.forEach(group => {
+                group.style.display = isChecked ? 'none' : 'block';
+            });
+
+            // 3. Recalcular el texto resumen
+            horarioManager.bypassCalculation = false;
+            horarioManager.actualizarResumen();
+        },
+
+        generarResumen: function(isInModal = true) {
+            // Detectar si está activado el modo dinámico
+            const esDinamico = isInModal && this.checkDynamic && this.checkDynamic.checked;
+
+            let resumenGeneral = [];
+            let totalHorasRoster = 0;
+            let totalDiasRoster = 0;
+            
+            const container = this.turno5x2Container;
+            const turnos = container ? container.querySelectorAll('.turno-5x2-container-item') : [];
+            let tiposDeTurno = [];
+
+            turnos.forEach((turnoElement, index) => {
+                const turnoNum = index + 1;
+                const titleEl = turnoElement.querySelector('.turno-5x2-title');
+                if(titleEl) titleEl.textContent = `Turno ${turnoNum}`;
+                
+                let totalDiasTurno = 0;
+                let totalHorasTurno = 0;
+                const tramos = turnoElement.querySelectorAll('.turno-5x2-tramo-item');
+
+                tramos.forEach((tramo, i) => {
+                    // Obtener valor de días (si está oculto, suele ser vacío o el valor previo)
+                    let dias = parseInt(tramo.querySelector('.input-dias-5x2').value) || 0;
+                    
+                    // Si es dinámico, ignoramos el input "dias" para el cálculo y asumimos 1 para mostrar horas por día
+                    let diasParaCalculo = dias;
+                    if (esDinamico) {
+                        diasParaCalculo = 1; 
+                    }
+
+                    const ini = tramo.querySelector('.input-hora-inicio-5x2').value;
+                    const fin = tramo.querySelector('.input-hora-fin-5x2').value;
+                    
+                    const selectDays = tramo.querySelector('.turno-day-select');
+                    const selectedDays = selectDays ? $(selectDays).val() : [];
+                    const diasStr = (selectedDays && selectedDays.length > 0) ? ` (${selectedDays.map(d=>d.substring(0,3)).join(', ')})` : '';
+
+                    if(diasParaCalculo > 0 && ini && fin) {
+                          const horasDiarias = calcularDiferenciaHoras(ini, fin);
+                          const horasFmt = parseFloat(horasDiarias.toFixed(2));
+                          const prefijo = (i === 0) ? `Turno ${turnoNum}: ` : ``;
+                          
+                          // --- DIFERENCIA DE FORMATO DE TEXTO ---
+                          if (esDinamico) {
+                              // Formato SIN días: "09:30 - 17:00 (7.5 hrs)"
+                              resumenGeneral.push(`${prefijo}${ini} - ${fin} (${horasFmt} hrs)${diasStr}`);
+                          } else {
+                              // Formato CON días: "5 días 09:30 - 17:00 (7.5 hrs)"
+                              resumenGeneral.push(`${prefijo}${dias} días ${ini} - ${fin} (${horasFmt} hrs)${diasStr}`);
+                          }
+                          
+                          totalDiasTurno += diasParaCalculo;
+                          totalHorasTurno += (diasParaCalculo * horasDiarias);
+                    }
+                });
+                
+                totalHorasRoster += totalHorasTurno;
+                totalDiasRoster += totalDiasTurno;
+
+                let tipo = '';
+                switch (totalDiasTurno) {
+                  case 4: tipo = '4X4'; break;
+                  case 5: tipo = '5X2'; break;
+                  case 7: tipo = '7X7'; break;
+                  default: tipo = totalDiasTurno > 0 ? `${totalDiasTurno} DÍAS` : 'INCOMPLETO';
+                }
+                tiposDeTurno.push(tipo);
+            });
+
+            // Generar Cabecera
+            let cabecera = '';
+            if (esDinamico) {
+                // Cabecera Forzada para Dinámico
+                horarioManager.totalHorasSemanaCache = 44; 
+                cabecera = "TOTAL SEMANAL (TURNO DINÁMICO): 44 hrs\n";
+                const glosa = this.dynamicGlosa ? this.dynamicGlosa.value : '';
+                return cabecera + resumenGeneral.join('\n') + '\n\n' + glosa;
+            } else {
+                // Cabecera Estándar
+                let etiqueta = 'TURNO';
+                if (turnos.length === 1) {
+                    etiqueta = `TURNO ${tiposDeTurno[0]}`;
+                } else if (turnos.length > 1) {
+                    const primerTipo = tiposDeTurno[0];
+                    const todosIguales = tiposDeTurno.every(t => t === primerTipo);
+                    etiqueta = todosIguales ? `TURNO ${primerTipo}` : 'TURNO MIXTO';
+                }
+                
+                let avgHoras = turnos.length ? (totalHorasRoster / turnos.length) : 0;
+                let avgDias = turnos.length ? (totalDiasRoster / turnos.length) : 0;
+                
+                if (tiposDeTurno.includes('7X7')) {
+                    avgHoras = avgHoras / 2;
+                    avgDias = avgDias / 2;
+                }
+
+                horarioManager.totalHorasSemanaCache = avgHoras;
+                cabecera = `TOTAL SEMANAL (${etiqueta}): ${parseFloat(avgHoras.toFixed(2))} hrs (Días Promedio: ${parseFloat(avgDias.toFixed(2))})\n`;
+                
+                if (turnos.length === 0) return `TOTAL SEMANAL (TURNO): 0 hrs (Días Promedio: 0)`;
+
+                return cabecera + resumenGeneral.join('\n');
+            }
+        },
+
+        cargarHorario: function(horarioString) {
+            if (this.checkDynamic) {
+                this.checkDynamic.checked = false;
+                if(this.dynamicTextContainer) this.dynamicTextContainer.style.display = 'none';
+            }
+            this.turno5x2Container.innerHTML = '';
+
+            // Detectar si es dinámico leyendo el string guardado
+            if (horarioString.includes('(TURNO DINÁMICO)') || horarioString.includes('Turnos sujetos a la combinación')) {
+                if (this.checkDynamic) {
+                    this.checkDynamic.checked = true;
+                    this.toggleDynamicTurn(true); 
+                    
+                    const partes = horarioString.split('\n\n');
+                    if (partes.length > 1) {
+                        const posibleGlosa = partes[partes.length - 1];
+                        if (posibleGlosa.includes('Turnos sujetos')) {
+                            this.dynamicGlosa.value = posibleGlosa.trim();
+                        }
+                    }
+                }
+            }
+
+            const lineas = horarioString.split('\n');
+            let currentTurnoWrapper = null;
+
+            lineas.forEach(linea => {
+                linea = linea.trim();
+                // Regex mejorado: Hace opcional el grupo de "(\d+) días"
+                const regexMain = /^(?:Turno \d+:\s*)?(?:(\d+)\s*días\s*)?(?:.*?)\s*(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})/i;
+                const match = linea.match(regexMain);
+                const esInicioTurno = /^Turno \d+:/i.test(linea);
+
+                if (match) {
+                    if (esInicioTurno || !currentTurnoWrapper) {
+                        this.agregarTurno();
+                        currentTurnoWrapper = this.turno5x2Container.lastElementChild.querySelector('.turno-5x2-tramos-wrapper');
+                        currentTurnoWrapper.innerHTML = ''; 
+                    }
+                    
+                    const turnoItem = currentTurnoWrapper.closest('.turno-5x2-container-item');
+                    const btnAdd = turnoItem.querySelector('.btn-agregar-tramo');
+                    this.agregarTramo(btnAdd);
+                    const tramo = currentTurnoWrapper.lastElementChild;
+                    
+                    // Si match[1] es undefined (modo dinámico), ponemos vacío
+                    tramo.querySelector('.input-dias-5x2').value = match[1] || '';
+                    tramo.querySelector('.input-hora-inicio-5x2').value = match[2];
+                    tramo.querySelector('.input-hora-fin-5x2').value = match[3];
+
+                    const matchDias = linea.match(/\(([A-ZÁÉÍÓÚÑ]{3}(?:, [A-ZÁÉÍÓÚÑ]{3})*)\)$/);
+                    if (matchDias) {
+                        const diasShort = matchDias[1].split(', ');
+                        const grid = tramo.querySelector('.turno-day-picker-grid');
+                        grid.querySelectorAll('.turno-day-picker-button').forEach(btn => {
+                            if (diasShort.includes(btn.textContent)) {
+                                this.toggleDay(btn, true); 
+                            }
+                        });
+                        this.actualizarDisponibilidad(turnoItem);
+                    }
+                }
+            });
+        },
+        
+        agregarTurno: function() {
+            horarioManager.bypassCalculation = false;
+            
+            const template = document.getElementById('template-turno-5x2-container');
+            const clone = template.content.cloneNode(true);
+            const target = this.turno5x2Container;
+
+            if(target) {
+                target.appendChild(clone);
+                const btn = target.lastElementChild.querySelector('.btn-agregar-tramo');
+                this.agregarTramo(btn);
+            }
+        },
+        
+        agregarTramo: function(btnElement) {
+            horarioManager.bypassCalculation = false;
+
+            const wrapper = btnElement.closest('.turno-5x2-container-item').querySelector('.turno-5x2-tramos-wrapper');
+            const template = document.getElementById('template-turno-5x2-tramo');
+            const clone = template.content.cloneNode(true);
+            
+            // Verificar si el checkbox está activo para ocultar el input en la nueva fila
+            const esDinamico = this.checkDynamic && this.checkDynamic.checked;
+            const groupDias = clone.querySelector('.turno-5x2-dias-group');
+            if (groupDias) {
+                 groupDias.style.display = esDinamico ? 'none' : 'block';
+            }
+
+            const select = clone.querySelector('.turno-day-select');
+            const grid = clone.querySelector('.turno-day-picker-grid');
+            diasSemana.forEach(d => {
+                const opt = new Option(d, d);
+                select.add(opt);
+                const btnDia = document.createElement('div');
+                btnDia.className = 'turno-day-picker-button';
+                btnDia.textContent = d.substring(0,3);
+                btnDia.dataset.value = d;
+                btnDia.onclick = () => {
+                    horarioManager.bypassCalculation = false;
+                    horarioManager.turno.onDayButtonClick(btnDia);
+                };
+                grid.appendChild(btnDia);
+            });
+            clone.querySelectorAll('input').forEach(i => {
+                if(!i.classList.contains('input-dias-5x2')) {
+                    i.addEventListener('input', () => { horarioManager.bypassCalculation = false; horarioManager.actualizarResumen(); });
+                    i.addEventListener('change', () => { horarioManager.bypassCalculation = false; horarioManager.actualizarResumen(); });
+                }
+            });
+            wrapper.appendChild(clone);
+            horarioManager.turno.actualizarDisponibilidad(wrapper.closest('.turno-5x2-container-item'));
+            horarioManager.actualizarResumen();
+        },
+        
+        eliminarTramo: function(btn) {
+            horarioManager.bypassCalculation = false;
+            const tramo = btn.closest('.turno-5x2-tramo-item');
+            const turnoItem = tramo.closest('.turno-5x2-container-item');
+            tramo.remove();
+            this.actualizarDisponibilidad(turnoItem);
+            horarioManager.actualizarResumen();
+        },
+        gestionarInputDias: function(input) {
+            const max = parseInt(input.value) || 0;
+            const tramo = input.closest('.turno-5x2-tramo-item');
+            const selected = tramo.querySelectorAll('.turno-day-picker-button.selected');
+            if (max > 0 && selected.length > max) {
+                alert('Redujo los días por debajo de la selección actual. Se limpiará la selección.');
+                selected.forEach(b => this.toggleDay(b, false));
+            }
+            horarioManager.bypassCalculation = false;
+            horarioManager.actualizarResumen();
+        },
+        toggleDayPicker: function(link) {
+            const container = link.parentElement.querySelector('.turno-day-picker-container');
+            const isHidden = container.style.display === 'none';
+            container.style.display = isHidden ? 'block' : 'none';
+            link.textContent = isHidden ? 'Ocultar selección' : 'Presione en caso de que aplique seleccionar días';
+        },
+        onDayButtonClick: function(btn) {
+            const tramo = btn.closest('.turno-5x2-tramo-item');
+            
+            const esDinamico = this.checkDynamic && this.checkDynamic.checked;
+            const max = parseInt(tramo.querySelector('.input-dias-5x2').value) || 0;
+            const isSelected = btn.classList.contains('selected');
+            const currentCount = tramo.querySelectorAll('.turno-day-picker-button.selected').length;
+
+            // Solo validamos el máximo si NO es dinámico
+            if (!esDinamico && !isSelected && (max === 0 || currentCount >= max)) {
+                alert(max === 0 ? 'Defina N° DÍAS primero.' : `Máximo ${max} días permitidos.`);
+                return;
+            }
+            
+            this.toggleDay(btn, !isSelected);
+            this.actualizarDisponibilidad(tramo.closest('.turno-5x2-container-item'));
+            horarioManager.bypassCalculation = false;
+            horarioManager.actualizarResumen();
+        },
+        toggleDay: function(btn, state) {
+            const tramo = btn.closest('.turno-5x2-tramo-item');
+            const select = tramo.querySelector('.turno-day-select');
+            const opt = Array.from(select.options).find(o => o.value === btn.dataset.value);
+            if(state) btn.classList.add('selected'); else btn.classList.remove('selected');
+            if(opt) opt.selected = state;
+        },
+        actualizarDisponibilidad: function(turnoItem) {
+            if(!turnoItem) return;
+            const allSelected = new Set();
+            turnoItem.querySelectorAll('.turno-day-picker-button.selected').forEach(b => allSelected.add(b.dataset.value));
+            turnoItem.querySelectorAll('.turno-day-picker-button').forEach(btn => {
+                const val = btn.dataset.value;
+                const isSelf = btn.classList.contains('selected');
+                if (allSelected.has(val) && !isSelf) {
+                    btn.disabled = true;
+                    btn.classList.add('disabled-global');
+                } else {
+                    btn.disabled = false;
+                    btn.classList.remove('disabled-global');
+                }
+            });
+        }
+    },
+    tallerista: {
+        get container() { return document.getElementById('modalTalleristaContainer'); },
+        get check247Tallerista() { return document.getElementById('checkTallerista247'); },
+        get inputHorasTallerista() { return document.getElementById('inputTalleristaHoras'); },
+        get optionsContainer() { return document.getElementById('talleristaGlobalOptions'); },
+        get filasContainer() { return document.getElementById('modalTalleristaFilasContainer'); },
+        get subtypeSelect() { return document.getElementById('talleristaSubtypeSelect'); },
+        get addBtnContainer() { 
+             const btn = this.container.querySelector('button[onclick*="agregarFila"]'); 
+             return btn ? btn.parentElement : null;
+        },
+        gestionarVisibilidad: function() {
+             const varContainer = document.getElementById('modalVariableContainer');
+             if (varContainer && this.container && this.container.parentNode === varContainer.parentNode) {
+                 varContainer.parentNode.insertBefore(this.container, varContainer);
+             }
+             this.container.style.display = 'block';
+             this.onSubtypeChange();
+        },
+        onCheck247Change: function() {
+             const isChecked = this.check247Tallerista && this.check247Tallerista.checked;
+             const horasContainer = document.getElementById('containerTalleristaHoras');
+             if (horasContainer) horasContainer.style.display = isChecked ? 'block' : 'none';
+             if (this.filasContainer) this.filasContainer.style.display = isChecked ? 'none' : 'block';
+             const btnAdd = this.container.querySelector('.btn-outline-secondary');
+             if (btnAdd) btnAdd.style.display = isChecked ? 'none' : 'inline-block';
+             const bloquesDiv = document.getElementById('modalBloquesContainer');
+             const btnAgregarBloque = document.getElementById('btnAgregarTramo');
+             if (bloquesDiv) bloquesDiv.style.display = isChecked ? 'none' : 'block';
+             if (btnAgregarBloque) btnAgregarBloque.style.display = isChecked ? 'none' : 'inline-block';
+             
+             horarioManager.bypassCalculation = false;
+             horarioManager.actualizarResumen();
+        },
+        onSubtypeChange: function() {
+             const tipo = this.subtypeSelect ? this.subtypeSelect.value : 'GENERICO';
+             const esGenerico = (tipo === 'GENERICO');
+             if (this.filasContainer) this.filasContainer.style.display = esGenerico ? 'block' : 'none';
+             const btnAdd = this.container.querySelector('.btn-outline-secondary');
+             if (btnAdd) btnAdd.style.display = esGenerico ? 'inline-block' : 'none';
+             if (horarioManager.ui.variableContainer) {
+                 horarioManager.ui.variableContainer.style.display = esGenerico ? 'block' : 'none';
+             }
+             [document.getElementById('checkFestivosContainer'), document.getElementById('checkMaxDiasContainer')].forEach(el => { if(el) el.style.display = 'none'; });
+             if (horarioManager.ui.check247Container) horarioManager.ui.check247Container.style.display = 'none'; 
+             if (this.check247Tallerista) {
+                      this.check247Tallerista.checked = false;
+                      this.onCheck247Change();
+             }
+             if (esGenerico) {
+                 this.actualizarGridsDeMeses();
+             }
+             horarioManager.bypassCalculation = false;
+             horarioManager.actualizarResumen();
+        },
+         generarResumen: function(isInModal = true) {
+             // FIX: Usamos el estado del checkbox directamente
+             const esDinamico = this.checkDynamic && this.checkDynamic.checked;
+             
+             let resumenGeneral = [];
+             let totalHorasRoster = 0;
+             let totalDiasRoster = 0;
+             
+             const container = this.turno5x2Container;
+             const turnos = container ? container.querySelectorAll('.turno-5x2-container-item') : [];
+             let tiposDeTurno = [];
+
+             turnos.forEach((turnoElement, index) => {
+                 const turnoNum = index + 1;
+                 const titleEl = turnoElement.querySelector('.turno-5x2-title');
+                 if(titleEl) titleEl.textContent = `Turno ${turnoNum}`;
+                 
+                 let totalDiasTurno = 0;
+                 let totalHorasTurno = 0;
+                 const tramos = turnoElement.querySelectorAll('.turno-5x2-tramo-item');
+
+                 tramos.forEach((tramo, i) => {
+                     const dias = parseInt(tramo.querySelector('.input-dias-5x2').value) || 0;
+                     const ini = tramo.querySelector('.input-hora-inicio-5x2').value;
+                     const fin = tramo.querySelector('.input-hora-fin-5x2').value;
+                     
+                     const selectDays = tramo.querySelector('.turno-day-select');
+                     const selectedDays = selectDays ? $(selectDays).val() : [];
+                     const diasStr = (selectedDays && selectedDays.length > 0) ? ` (${selectedDays.map(d=>d.substring(0,3)).join(', ')})` : '';
+
+                     if(dias > 0 && ini && fin) {
+                           const horasDiarias = calcularDiferenciaHoras(ini, fin);
+                           const horasFmt = parseFloat(horasDiarias.toFixed(2));
+                           const prefijo = (i === 0) ? `Turno ${turnoNum}: ` : ``;
+                           resumenGeneral.push(`${prefijo}${dias} días ${ini} - ${fin} (${horasFmt} hrs)${diasStr}`);
+                           totalDiasTurno += dias;
+                           totalHorasTurno += (dias * horasDiarias);
+                     }
+                 });
+                 totalHorasRoster += totalHorasTurno;
+                 totalDiasRoster += totalDiasTurno;
+                 let tipo = '';
+                 switch (totalDiasTurno) {
+                   case 4: tipo = '4X4'; break;
+                   case 5: tipo = '5X2'; break;
+                   case 7: tipo = '7X7'; break;
+                   default: tipo = totalDiasTurno > 0 ? `${totalDiasTurno} DÍAS` : 'INCOMPLETO';
+                 }
+                 tiposDeTurno.push(tipo);
+             });
+
+             let cabecera = '';
+             if (esDinamico) {
+                 horarioManager.totalHorasSemanaCache = 44; 
+                 cabecera = "TOTAL SEMANAL (TURNO DINÁMICO): 44 hrs\n";
+                 const glosa = this.dynamicGlosa ? this.dynamicGlosa.value : '';
+                 return cabecera + resumenGeneral.join('\n') + '\n\n' + glosa;
+             } else {
+                 let etiqueta = 'TURNO';
+                 if (turnos.length === 1) {
+                     etiqueta = `TURNO ${tiposDeTurno[0]}`;
+                 } else if (turnos.length > 1) {
+                     const primerTipo = tiposDeTurno[0];
+                     const todosIguales = tiposDeTurno.every(t => t === primerTipo);
+                     etiqueta = todosIguales ? `TURNO ${primerTipo}` : 'TURNO MIXTO';
+                 }
+                 let avgHoras = turnos.length ? (totalHorasRoster / turnos.length) : 0;
+                 let avgDias = turnos.length ? (totalDiasRoster / turnos.length) : 0;
+                 if (tiposDeTurno.includes('7X7')) {
+                     avgHoras = avgHoras / 2;
+                     avgDias = avgDias / 2;
+                 }
+                 horarioManager.totalHorasSemanaCache = avgHoras;
+                 cabecera = `TOTAL SEMANAL (${etiqueta}): ${parseFloat(avgHoras.toFixed(2))} hrs (Días Promedio: ${parseFloat(avgDias.toFixed(2))})\n`;
+                 if (turnos.length === 0) return `TOTAL SEMANAL (TURNO): 0 hrs (Días Promedio: 0)`;
+                 return cabecera + resumenGeneral.join('\n');
+             }
+        },
+        
+        cargarHorario: function(str) {
+             if (!this.subtypeSelect) this.gestionarVisibilidad(); 
+
+             if (str.includes('DISPONIBILIDAD 24/7') && str.includes('TOTAL SEMANAL')) {
+                 this.subtypeSelect.value = 'GENERICO';
+                 this.check247Tallerista.checked = true;
+                 
+                 const matchHoras = str.match(/TOTAL SEMANAL\s+(\d+)HRS:/i);
+                 if (matchHoras && this.inputHorasTallerista) {
+                     this.inputHorasTallerista.value = matchHoras[1];
+                 }
+                 this.onCheck247Change();
+                 return;
+             }
+
+             if (str.trim() === "TOTAL MENSUAL: 60 hrs (Máximo)") {
+                 this.subtypeSelect.value = 'CAMPEONES';
+             } else if (str.trim() === "TOTAL MENSUAL: 50 Tocatas (Máximo)") {
+                 this.subtypeSelect.value = 'BANDA';
+             } else {
+                 this.subtypeSelect.value = 'GENERICO';
+                 const partes = str.split('\n---\n');
+                 if (partes[1] && horarioManager.cargarHorarioBloques) {
+                     horarioManager.cargarHorarioBloques(partes[1], 'TALLERISTA O MONITOR');
+                 }
+             }
+             this.onSubtypeChange();
+        },
+
+        agregarFila: function() {
+             horarioManager.bypassCalculation = false;
+
+             const tpl = document.getElementById('template-fila-tallerista');
+             const clone = tpl.content.cloneNode(true);
+             const row = clone.querySelector('.tallerista-fila-item');
+             const select = row.querySelector('.tallerista-months');
+             const grid = row.querySelector('.month-picker-grid');
+             if(typeof availableProgramMonths !== 'undefined') {
+                 availableProgramMonths.forEach(m => {
+                     const opt = new Option(m, m);
+                     select.add(opt);
+                     const btn = document.createElement('div');
+                     btn.className = 'month-picker-button';
+                     btn.textContent = m;
+                     btn.dataset.value = m;
+                     btn.onclick = () => {
+                         btn.classList.toggle('selected');
+                         opt.selected = btn.classList.contains('selected');
+                         $(select).trigger('change');
+                         horarioManager.bypassCalculation = false;
+                         horarioManager.actualizarResumen();
+                     };
+                     grid.appendChild(btn);
+                 });
+             }
+             row.querySelectorAll('input').forEach(input => {
+                 input.addEventListener('input', () => { horarioManager.bypassCalculation = false; horarioManager.actualizarResumen(); });
+             });
+             
+             const target = this.filasContainer;
+             if(target) target.appendChild(clone);
+        },
+        
+        actualizarGridsDeMeses: function() {
+             if(!this.filasContainer) return;
+             this.filasContainer.querySelectorAll('.tallerista-fila-item').forEach(fila => {
+                 const select = fila.querySelector('.tallerista-months');
+                 const grid = fila.querySelector('.month-picker-grid');
+                 const selectedValues = $(select).val() || [];
+                 select.innerHTML = '';
+                 grid.innerHTML = '';
+                 if (typeof availableProgramMonths !== 'undefined') {
+                     availableProgramMonths.forEach(m => {
+                           const isSelected = selectedValues.includes(m);
+                           const opt = new Option(m, m, isSelected, isSelected);
+                           select.add(opt);
+                           const btn = document.createElement('div');
+                           btn.className = 'month-picker-button';
+                           if (isSelected) btn.classList.add('selected');
+                           btn.textContent = m;
+                           btn.dataset.value = m;
+                           btn.onclick = () => {
+                               btn.classList.toggle('selected');
+                               opt.selected = btn.classList.contains('selected');
+                               $(select).trigger('change');
+                               horarioManager.actualizarResumen();
+                           };
+                           grid.appendChild(btn);
+                     });
+                 }
+             });
+        },
+        gestionarVisibilidadPeriodo: function(select) {
+             const row = select.closest('.tallerista-fila-item');
+             const esMensual = select.value === 'MENSUAL';
+             const divFechas = row.querySelector('.periodo-fechas');
+             const divMeses = row.querySelector('.periodo-meses');
+             if (esMensual) {
+                 divFechas.style.setProperty('display', 'none', 'important');
+                 divMeses.style.display = 'block';
+             } else {
+                 divFechas.style.setProperty('display', 'flex', 'important');
+                 divMeses.style.display = 'none';
+             }
+        }
+    }
+  };
+
+  // Exponer al framework global
+  window.App_Horario_Temp = {
+    ...horarioManager,
+    // Binding manual de métodos anidados
+    turno: horarioManager.turno,
+    tallerista: horarioManager.tallerista,
+    // Binding de métodos principales
+    gestionarVisibilidad: horarioManager.gestionarVisibilidad.bind(horarioManager),
+    // Alias para que funcione la llamada inline del HTML principal
+    gestionarVisibilidadInline: horarioManager.gestionarVisibilidadInline.bind(horarioManager), 
+    actualizarResumen: horarioManager.actualizarResumen.bind(horarioManager),
+    toggle247: horarioManager.toggle247.bind(horarioManager),
+    toggleMaxDias: horarioManager.toggleMaxDias.bind(horarioManager),
+    agregarBloque: horarioManager.agregarBloque.bind(horarioManager),
+    inicializarVistaSoloLectura: horarioManager.inicializarVistaSoloLectura.bind(horarioManager),
+    habilitarEdicion: horarioManager.habilitarEdicion.bind(horarioManager),
+    resetearVistaCompleta: horarioManager.resetearVistaCompleta.bind(horarioManager),
+    sincronizarModal: horarioManager.sincronizarModal.bind(horarioManager),
+    guardarDesdeModal: horarioManager.guardarDesdeModal.bind(horarioManager),
+    
+    // EXPOSICIÓN DE ALIAS PARA ONCLICK HTML
+    // Estos son los que faltaban y causaban el error "is not a function"
+    agregarTurno5x2_Turno: function() { 
+        horarioManager.turno.agregarTurno(); 
+    },
+    // Corrección para Tallerista también (si se llama desde HTML)
+    tallerista: {
+        agregarFila: function() {
+             horarioManager.tallerista.agregarFila();
+        },
+        gestionarVisibilidadPeriodo: horarioManager.tallerista.gestionarVisibilidadPeriodo.bind(horarioManager.tallerista),
+        onSubtypeChange: horarioManager.tallerista.onSubtypeChange.bind(horarioManager.tallerista),
+        onCheck247Change: horarioManager.tallerista.onCheck247Change.bind(horarioManager.tallerista),
+        // CORRECCIÓN: Agregar este método al objeto expuesto
+        actualizarGridsDeMeses: horarioManager.tallerista.actualizarGridsDeMeses.bind(horarioManager.tallerista)
+    }
+  };
+
+})(); 
+</script>

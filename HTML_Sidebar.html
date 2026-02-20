@@ -1,0 +1,41 @@
+<div id="sidebar">
+  <div class="sidebar-header">
+    <i class="fas fa-database"></i>
+    <h3>Gestión de Nuevos Ingresos</h3>
+  </div>
+  <ul class="list-unstyled components">
+    <li class="active">
+      <a href="#" data-vista="dashboard">
+        <i class="fas fa-chart-pie"></i> Dashboard </a>
+    </li>
+    <li>
+      <a href="#" data-vista="ingresos">
+        <i class="fas fa-user-plus"></i> Gestión de Ingresos </a>
+    </li>
+    <li>
+      <a href="#" data-vista="todos">
+        <i class="fas fa-list-ul"></i> Ver Todos </a>
+    </li>
+    <li>
+      <a href="#" data-vista="incompletos">
+        <i class="fas fa-exclamation-triangle"></i> Registros Incompletos </a>
+    </li>
+    <li>
+      <a href="#" data-vista="traspasos">
+        <i class="fas fa-exchange-alt"></i> Módulo de Traspasos </a>
+    </li>
+    <li>
+      <a href="#" data-vista="correos">
+        <i class="fas fa-envelope-open-text"></i> Correos de Bienvenida </a>
+    </li>
+  </ul>
+  <div class="sidebar-footer">
+    <button type="button" id="btn-refresh-data" class="btn btn-sm btn-outline-info w-100 mb-2" title="Forzar recarga de datos" onclick="App.methods.forzarActualizacionGlobal()">
+      <i class="fas fa-sync-alt"></i> Actualizar Datos
+    </button>
+    <button type="button" id="btn-toggle-dark-mode" class="btn btn-sm btn-outline-secondary w-100" title="Cambiar Tema">
+      <i class="fas fa-moon"></i>
+      <span>Cambiar Tema</span>
+    </button>
+  </div>
+</div>

@@ -1,0 +1,245 @@
+<!-- Agregamos TailwindCSS -->
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+    .animate-fade-in { animation: fadeIn 0.4s ease-out; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    
+    .checkbox-custom:checked { background-color: #2563EB; border-color: #2563EB; background-image: url("data:image/svg+xml,%3csvg viewBox='0 0 16 16' fill='white' xmlns='http://www.w3.org/2000/svg'%3e%3cpath d='M12.207 4.793a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0l-2-2a1 1 0 011.414-1.414L6.5 9.086l4.293-4.293a1 1 0 011.414 0z'/%3e%3c/svg%3e"); }
+    
+    .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+    .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+</style>
+
+<div id="vista-correos" class="vista-contenido w-full p-8 bg-slate-50 min-h-screen" style="display: none;">
+  
+  <!-- Header -->
+  <div class="flex flex-col md:flex-row justify-between items-end mb-8 border-b border-gray-200 pb-4">
+    <div>
+      <h2 class="text-3xl font-extrabold text-slate-800 tracking-tight flex items-center gap-3">
+         <span class="bg-blue-100 text-blue-600 p-2 rounded-lg"><i class="fas fa-envelope-open-text"></i></span>
+         Gestión de Correos
+      </h2>
+      <p class="text-slate-500 mt-1 ml-12">Envío de notificaciones de bienvenida a nuevos ingresos.</p>
+    </div>
+    <button onclick="App.methods.correo.cargarVista()" class="group flex items-center gap-2 px-5 py-2.5 bg-white border border-gray-300 rounded-lg shadow-sm hover:border-blue-400 hover:text-blue-600 hover:shadow-md transition-all duration-200 mt-4 md:mt-0">
+        <i class="fas fa-sync-alt text-gray-400 group-hover:text-blue-500 group-hover:rotate-180 transition-transform duration-500"></i>
+        <span class="text-sm font-medium">Actualizar Lista</span>
+    </button>
+  </div>
+
+  <!-- Filtros -->
+  <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 mb-6 grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+      <div class="md:col-span-5">
+          <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">Buscar Funcionario</label>
+          <div class="relative group">
+              <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400 group-focus-within:text-blue-500 transition-colors"><i class="fas fa-search"></i></span>
+              <input type="text" id="filtro-correo-texto" placeholder="Nombre o RUT..." class="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:bg-white focus:ring-2 focus:ring-blue-100 focus:border-blue-400 outline-none transition-all">
+          </div>
+      </div>
+      <div class="md:col-span-4">
+          <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">Calidad Contractual</label>
+          <div class="relative">
+              <select id="filtro-correo-calidad" class="w-full pl-3 pr-8 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:bg-white focus:ring-2 focus:ring-blue-100 focus:border-blue-400 outline-none transition-all appearance-none">
+                  <option value="">Todas</option>
+              </select>
+              <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-500">
+                <i class="fas fa-chevron-down text-xs"></i>
+              </div>
+          </div>
+      </div>
+      <div class="md:col-span-3">
+          <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">Fecha Ingreso</label>
+          <input type="date" id="filtro-correo-fecha" class="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:bg-white focus:ring-2 focus:ring-blue-100 focus:border-blue-400 text-gray-600 outline-none transition-all">
+      </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="flex space-x-2 bg-gray-200/60 p-1.5 rounded-xl w-fit mb-6">
+      <button id="tab-con-correo" onclick="App.methods.correo.cambiarTab('con')" class="flex items-center gap-2 px-5 py-2.5 text-sm font-bold rounded-lg transition-all shadow-sm bg-white text-blue-700 ring-1 ring-black/5">
+          <i class="fas fa-check-circle"></i> Listos para Enviar
+          <span id="badge-con-correo" class="ml-1 bg-blue-50 text-blue-600 py-0.5 px-2 rounded-md text-xs border border-blue-100">0</span>
+      </button>
+      <button id="tab-sin-correo" onclick="App.methods.correo.cambiarTab('sin')" class="flex items-center gap-2 px-5 py-2.5 text-sm font-bold rounded-lg text-gray-500 hover:text-gray-700 hover:bg-white/50 transition-all">
+          <i class="fas fa-exclamation-triangle"></i> Sin Correo
+          <span id="badge-sin-correo" class="ml-1 bg-gray-200 text-gray-600 py-0.5 px-2 rounded-md text-xs">0</span>
+      </button>
+  </div>
+
+  <!-- TABLA PRINCIPAL -->
+  <div class="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden animate-fade-in relative">
+      
+      <!-- Panel: CON Correo -->
+      <div id="panel-con-correo">
+          <div class="overflow-x-auto min-h-[300px]">
+              <table class="w-full text-left border-collapse">
+                  <thead>
+                      <tr class="bg-slate-50 border-b border-slate-200 text-xs uppercase text-slate-500 font-bold tracking-wider">
+                          <th class="px-6 py-4 text-center w-16">
+                              <input type="checkbox" id="check-todos-con" class="checkbox-custom w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer transition-colors">
+                          </th>
+                          <th class="px-6 py-4">Funcionario</th>
+                          <th class="px-6 py-4">RUT / ID</th>
+                          <th class="px-6 py-4">Calidad / Fecha</th>
+                          <th class="px-6 py-4">Email Destino</th>
+                          <th class="px-6 py-4 text-center">Orden</th> <!-- COLUMNA PARA EL CLIP -->
+                          <th class="px-6 py-4 text-right">Acción</th>
+                      </tr>
+                  </thead>
+                  <tbody id="tbody-con-correo" class="divide-y divide-slate-100">
+                      <tr><td colspan="7" class="p-8 text-center text-gray-400">Cargando datos...</td></tr>
+                  </tbody>
+              </table>
+          </div>
+          
+          <!-- Footer Acciones -->
+          <div class="bg-slate-50 px-6 py-4 border-t border-slate-200 flex items-center justify-between sticky bottom-0 z-10">
+              <div class="text-sm font-medium text-slate-600 flex items-center gap-2 bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm">
+                  <span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-xs font-bold" id="contador-seleccionados-con">0</span> seleccionados
+              </div>
+              <button id="btn-enviar-masivo" disabled onclick="App.methods.correo.confirmarEnvioMasivo()" class="group flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg text-sm font-bold shadow-md shadow-blue-200 disabled:opacity-50 disabled:shadow-none disabled:cursor-not-allowed transition-all active:scale-95">
+                  <span>Configurar y Enviar</span>
+                  <i class="fas fa-arrow-right group-hover:translate-x-1 transition-transform"></i>
+              </button>
+          </div>
+      </div>
+
+      <!-- Panel: SIN Correo -->
+      <div id="panel-sin-correo" style="display: none;">
+          <div class="overflow-x-auto min-h-[300px]">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="bg-slate-50 border-b border-slate-200 text-xs uppercase text-slate-500 font-bold tracking-wider">
+                        <th class="px-6 py-4">Funcionario</th>
+                        <th class="px-6 py-4">RUT</th>
+                        <th class="px-6 py-4">Calidad</th>
+                        <th class="px-6 py-4 text-center">Orden</th>
+                        <th class="px-6 py-4">Estado</th>
+                    </tr>
+                </thead>
+                <tbody id="tbody-sin-correo" class="divide-y divide-slate-100"></tbody>
+            </table>
+          </div>
+          <div class="bg-amber-50 px-6 py-4 border-t border-amber-100 flex items-center gap-3 text-sm text-amber-900">
+              <div class="bg-amber-100 p-2 rounded-full text-amber-600"><i class="fas fa-exclamation-triangle"></i></div>
+              <p>Estos usuarios requieren que edites su ficha y agregues un <strong>correo electrónico válido</strong> antes de poder notificarles.</p>
+          </div>
+      </div>
+  </div>
+
+  <!-- MODAL DE PREVISUALIZACIÓN Y CONFIGURACIÓN -->
+  <div id="modal-preview-correo" class="fixed inset-0 z-[100] hidden" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" onclick="App.methods.correo.cerrarPreview()"></div>
+    <div class="flex items-center justify-center min-h-screen p-4">
+      <div class="relative bg-white rounded-2xl shadow-2xl max-w-6xl w-full max-h-[90vh] flex flex-col overflow-hidden border border-slate-200 transform transition-all">
+        
+        <div class="px-8 py-5 border-b border-gray-100 bg-white flex justify-between items-center z-10 sticky top-0">
+            <div>
+                <h3 class="text-xl font-extrabold text-slate-800 flex items-center gap-2">
+                    <span class="bg-blue-50 text-blue-600 p-1.5 rounded-lg"><i class="fas fa-paper-plane"></i></span> 
+                    Configurar Envío
+                </h3>
+                <p class="text-xs text-gray-400 mt-1 pl-1">Selecciona formato y destinatarios.</p>
+            </div>
+            <button onclick="App.methods.correo.cerrarPreview()" class="text-gray-400 hover:text-red-500 hover:bg-red-50 p-2 rounded-full transition-colors">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+
+        <div class="p-0 overflow-y-auto bg-gray-50 flex-1 relative custom-scrollbar">
+            
+            <div id="preview-loading" class="absolute inset-0 flex flex-col justify-center items-center bg-white z-20">
+                <div class="w-12 h-12 border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin mb-4"></div>
+                <p class="text-slate-500 font-medium text-sm animate-pulse">Cargando vista previa...</p>
+            </div>
+
+            <div id="preview-content-wrapper" class="hidden flex flex-col md:flex-row h-full">
+                
+                <!-- Columna Izquierda: Configuración -->
+                <div class="w-full md:w-1/3 p-6 border-r border-gray-200 bg-white space-y-6 overflow-y-auto">
+                    
+                    <!-- Selección de Formato -->
+                    <div>
+                        <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">1. Formato del Correo</h4>
+                        <div class="space-y-3">
+                            <label class="flex items-start p-3 border rounded-lg cursor-pointer hover:bg-blue-50 hover:border-blue-200 transition-all group">
+                                <input type="radio" name="formatoCorreo" value="A" class="mt-1 text-blue-600 focus:ring-blue-500 border-gray-300" checked onchange="App.methods.correo.actualizarVistaPrevia()">
+                                <div class="ml-3">
+                                    <span class="block text-sm font-medium text-gray-900">Formato A (Previred)</span>
+                                    <span class="block text-xs text-gray-500 mt-1">Incluye link a Previred y video explicativo.</span>
+                                </div>
+                            </label>
+                            <label class="flex items-start p-3 border rounded-lg cursor-pointer hover:bg-blue-50 hover:border-blue-200 transition-all group">
+                                <input type="radio" name="formatoCorreo" value="B" class="mt-1 text-blue-600 focus:ring-blue-500 border-gray-300" onchange="App.methods.correo.actualizarVistaPrevia()">
+                                <div class="ml-3">
+                                    <span class="block text-sm font-medium text-gray-900">Formato B (Estándar)</span>
+                                    <span class="block text-xs text-gray-500 mt-1">Solo bienvenida.</span>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Selección de CC -->
+                    <div>
+                        <div class="flex justify-between items-center mb-3">
+                            <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider">2. En Copia (CC)</h4>
+                            <button onclick="App.methods.correo.toggleAllCC()" class="text-xs text-blue-600 hover:text-blue-800 font-medium hover:underline">Seleccionar Todos</button>
+                        </div>
+                        <div id="lista-cc-container" class="space-y-2 max-h-64 overflow-y-auto pr-2 custom-scrollbar border border-gray-100 rounded-lg p-2 bg-gray-50">
+                            <!-- Inyectado por JS -->
+                        </div>
+                    </div>
+
+                    <div id="seccion-jefaturas-especificas" class="hidden">
+                <div class="flex justify-between items-center mb-3">
+                    <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider">3. Jefaturas Directas (Opcional)</h4>
+                </div>
+                <div class="bg-blue-50 border border-blue-100 rounded-lg p-3 text-xs text-blue-800 mb-3">
+                    <i class="fas fa-info-circle mr-1"></i> Agregue correos adicionales específicos para cada funcionario (ej. su Jefatura). No se cruzarán entre ellos.
+                </div>
+                <!-- Aquí se inyectarán los inputs dinámicamente -->
+                <div id="lista-jefaturas-container" class="space-y-4"></div>
+            </div>
+
+        </div>
+
+             
+
+                <!-- Columna Derecha: Vista Previa -->
+                <div class="w-full md:w-2/3 p-8 bg-gray-50 flex flex-col">
+                    <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">3. Vista Previa del Resultado</h4>
+                    
+                    <div class="bg-white border border-gray-200 shadow-lg rounded-lg overflow-hidden flex-1 flex flex-col ring-1 ring-black/5">
+                        <div class="bg-gray-100 px-4 py-2 border-b border-gray-200 flex gap-2 items-center">
+                            <div class="w-3 h-3 rounded-full bg-red-400 shadow-sm"></div>
+                            <div class="w-3 h-3 rounded-full bg-yellow-400 shadow-sm"></div>
+                            <div class="w-3 h-3 rounded-full bg-green-400 shadow-sm"></div>
+                            <div class="ml-4 bg-white rounded text-[10px] text-gray-400 px-3 py-0.5 flex-1 text-center shadow-sm font-mono">Vista Previa</div>
+                        </div>
+                        
+                        <div id="preview-contenido" class="p-8 text-sm text-slate-800 leading-relaxed font-sans bg-white flex-1 overflow-y-auto custom-scrollbar"></div>
+                    </div>
+                    
+                    <div id="preview-info-masivo" class="hidden mt-4 p-3 bg-indigo-50 border border-indigo-100 rounded-lg flex gap-3 text-xs text-indigo-900 shadow-sm">
+                        <i class="fas fa-info-circle text-indigo-600 text-lg flex-shrink-0"></i>
+                        <p>Estás viendo el ejemplo del primer destinatario. Se enviará a <span id="preview-count-masivo" class="font-bold">0</span> personas.</p>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <div class="px-8 py-5 border-t border-gray-100 bg-white flex justify-end gap-3 z-10 sticky bottom-0">
+          <button onclick="App.methods.correo.cerrarPreview()" class="px-6 py-2.5 rounded-lg border border-gray-300 text-gray-700 font-bold text-sm hover:bg-gray-50 hover:text-gray-900 transition shadow-sm">
+            Cancelar
+          </button>
+          <button id="btn-confirmar-envio-modal" onclick="App.methods.correo.ejecutarEnvioReal()" class="px-6 py-2.5 rounded-lg bg-green-600 text-white font-bold text-sm shadow-lg shadow-green-200 hover:bg-green-700 hover:shadow-xl transition-all flex items-center gap-2 transform active:scale-95">
+            <i class="fas fa-paper-plane"></i> Confirmar y Enviar
+          </button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>

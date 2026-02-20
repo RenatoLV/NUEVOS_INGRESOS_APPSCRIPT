@@ -1,0 +1,480 @@
+<script>
+// Este objeto contiene todos los "manejadores" de éxito y fracaso (callbacks).
+const App_Handlers = {
+    onFailure: function(error) {
+        console.error('HANDLER onFailure:', error);
+        
+        // --- CRÍTICO: DESBLOQUEAR PANTALLA SIEMPRE ---
+        if (App.methods && App.methods.desbloquearPantalla) {
+            App.methods.desbloquearPantalla();
+        }
+        if (App.methods && App.methods.toggleLoader) {
+            App.methods.toggleLoader('busqueda', false);
+            App.methods.toggleLoader('guardado', false);
+        }
+
+        const mensaje = error.message || "Error desconocido en el servidor.";
+        alert("ERROR: " + mensaje);
+        
+        // Si falló en la carga inicial, mostrar en el div
+        if (App.ui && App.ui.inicialLoaderSection && App.ui.inicialLoaderSection.style.display !== 'none') {
+            App.ui.inicialLoaderSection.innerHTML = `<div class="alert alert-danger">Error crítico: ${mensaje}</div>`;
+        }
+    },
+
+    onDatosInicialesSuccess: function(diccionario) {
+            if (!diccionario || diccionario.error) {
+                App.handlers.onFailure({ message: "Error cargando datos iniciales." });
+                return;
+            }
+            
+            // Poblar estado con los datos recibidos
+            App.state.datosPerfiles = diccionario.perfilesConDescripcion || [];
+            App.state.datosJerarquia = diccionario.jerarquia || [];
+            App.state.datosGrados = diccionario.gradosEscalafones || [];
+            App.state.escalaDeSueldos = diccionario.escalaDeSueldos || [];
+            App.state.listaDeTemplates = diccionario.templates || [];
+            
+            // --- NUEVO: Guardar directorio de jefaturas (ESTO FALTABA) ---
+            App.state.directorioJefaturas = diccionario['DIRECTORIO_JEFATURAS_DATA'] || [];
+            
+            // Poblar selects y componentes UI
+            App.util.poblarSelectsDesdeDiccionario(diccionario);
+            App.initExternalComponents();
+            App.state.diccionarioCargado = true;
+            
+            // Ocultar el loader inicial para revelar el Dashboard
+            App.ui.inicialLoaderSection.style.display = 'none';
+    },
+
+    onResultadosBusquedaSuccess: function(resultados) {
+        App.methods.toggleLoader('busqueda', false);
+        const divResultados = App.ui.resultadosBusqueda;
+        divResultados.innerHTML = '';
+        if (!Array.isArray(resultados)) {
+            if (resultados && resultados.error) {
+                divResultados.innerHTML = `<div class="p-2 text-danger">Error del servidor: ${resultados.message}</div>`;
+            } else {
+                divResultados.innerHTML = '<div class="p-2 text-danger">Respuesta inesperada del servidor.</div>';
+            }
+            return;
+        }
+        if (resultados.length === 0) {
+            divResultados.innerHTML = '<div class="p-2">No se encontraron registros para ese RUT.</div>';
+            return;
+        }
+        resultados.forEach(reg => {
+            const item = document.createElement('div');
+            item.className = 'resultado-item';
+            let fechaIngreso = 'N/A';
+            try {
+                if (reg['FECHA INGRESO']) {
+                    const dateObj = new Date(reg['FECHA INGRESO']);
+                    if (!isNaN(dateObj.getTime())) {
+                        fechaIngreso = dateObj.toLocaleDateString('es-CL', { timeZone: 'UTC' });
+                    }
+                }
+            } catch (e) {
+                console.error("Error al procesar la fecha:", reg['FECHA INGRESO'], e);
+            }
+            const nombre = reg['NOMBRE COMPLETO'] || 'SIN NOMBRE';
+            const id = reg.ID || 'N/A';
+            const calidad = reg['CALIDAD CONTRACTUAL'] || '';
+            item.innerHTML = `<strong>ID: ${id}</strong> | ${nombre} | <span class="badge badge-secondary">${calidad}</span> | Ingreso: ${fechaIngreso}`;
+            item.onclick = () => App.methods.cargarRegistroParaEdicion(reg);
+            divResultados.appendChild(item);
+        });
+    },
+
+    onSaveSuccess: function(response) {
+        App.methods.toggleLoader('guardado', false); // Desbloquea la pantalla
+        
+        if (response.success) {
+            $('#confirmarGuardadoModal').modal('hide');
+            alert(response.message);
+
+            const idActual = response.newId || App.ui.ID.value;
+            if (response.newId) App.ui.btnAbrirModalDocumentos.style.display = 'inline-block';
+
+            if (idActual) {
+                localStorage.setItem('ultimoIdEditado_Ingresos', idActual);
+                
+                // Recargamos datos frescos
+                App.methods.bloquearPantalla('Actualizando vista...');
+                
+                google.script.run
+                    .withSuccessHandler(registroActualizado => {
+                        App.methods.desbloquearPantalla();
+                        if (registroActualizado && !registroActualizado.error) {
+                            App.methods.cargarRegistroParaEdicion(registroActualizado);
+                            
+                            // Actualizar lista en memoria (cache) para el dashboard
+                            if (App.state.todosLosIngresos) {
+                                const index = App.state.todosLosIngresos.findIndex(r => String(r.ID) === String(idActual));
+                                if (index !== -1) App.state.todosLosIngresos[index] = registroActualizado;
+                                else App.state.todosLosIngresos.push(registroActualizado);
+                            }
+                        }
+                    })
+                    .withFailureHandler((e) => {
+                        App.methods.desbloquearPantalla();
+                        App.handlers.onFailure(e);
+                    })
+                    .obtenerDatosCompletosPorId(idActual);
+            }
+        } else {
+            App.handlers.onFailure({ message: response.message });
+        }
+    },
+
+    onIncompletosSuccess: function(registros) {
+        App.methods.desbloquearPantalla(); // <--- DESBLOQUEO AL TERMINAR
+        const contenedor = App.ui.vistas.incompletos;
+
+        if (registros.error) {
+            contenedor.innerHTML = `<div class="alert alert-danger">Error al cargar datos: ${registros.message}</div>`;
+            return;
+        }
+
+        if (registros.length === 0) {
+            contenedor.innerHTML = `<h2><i class="fas fa-check-circle text-success"></i> Registros Incompletos</h2><div class="alert alert-success mt-3">¡Excelente! No hay registros con información pendiente.</div>`;
+            return;
+        }
+
+        App.state.registrosIncompletos = registros;
+
+        // --- Construcción de la Tabla ---
+        let tablaHtml = `
+            <h2><i class="fas fa-exclamation-triangle text-warning"></i> Registros Incompletos</h2>
+            <p>Haz clic en una fila para completar la información pendiente.</p>
+            <div class="form-group mt-3">
+                <input type="text" class="form-control" id="buscador-incompletos" placeholder="Buscar por Nombre o RUT...">
+            </div>
+            <div class="table-responsive mt-3">
+                <table class="table table-hover" id="tabla-incompletos">
+                    <thead class="thead-light">
+                        <tr>
+                            <th>ID</th>
+                            <th>Nombre Completo</th>
+                            <th class="col-rut">RUT</th>
+                            <th>Calidad</th>
+                            <th>Estado Contratos</th>  <th>Estado General</th>      </tr>
+                    </thead>
+                    <tbody>`;
+
+        registros.forEach(reg => {
+            let htmlEstadoContratos = '';
+            if (reg.estadoContratos === 'LISTO') {
+                htmlEstadoContratos = '<span class="badge badge-success">LISTO</span>';
+            } else {
+                htmlEstadoContratos = `<span class="badge badge-warning">PENDIENTE</span>`;
+                if (reg.faltanteContratos) {
+                     const faltantes = reg.faltanteContratos.replace(/^Falta:\s*/i, '');
+                     htmlEstadoContratos += `<br><small class="text-warning" style="font-size: 0.75em;">(${faltantes})</small>`;
+                }
+            }
+
+            let htmlEstadoGeneral = `<span class="badge badge-danger">INCOMPLETA</span>`;
+            if (reg.faltanteGeneral) {
+                 const faltantes = reg.faltanteGeneral.replace(/^Falta:\s*/i, '');
+                 htmlEstadoGeneral += `<br><small class="text-danger" style="font-size: 0.75em;">(${faltantes})</small>`;
+            }
+
+            tablaHtml += `
+                <tr class="fila-clickable" data-id="${reg.ID}">
+                    <td><strong>${reg.ID}</strong></td>
+                    <td>${reg['NOMBRE COMPLETO']}</td>
+                    <td class="col-rut">${reg.RUT}</td>
+                    <td><span class="badge badge-secondary">${reg['CALIDAD CONTRACTUAL'] || 'N/A'}</span></td>
+                    <td>${htmlEstadoContratos}</td> <td>${htmlEstadoGeneral}</td>  </tr>`;
+        });
+
+        tablaHtml += `</tbody></table></div>`;
+        contenedor.innerHTML = tablaHtml;
+
+        contenedor.querySelectorAll('.fila-clickable').forEach(fila => {
+            fila.addEventListener('click', (e) => {
+                 const filaClickeada = e.currentTarget;
+                 const id = filaClickeada.dataset.id;
+                 const registroSeleccionado = App.state.registrosIncompletos.find(r => String(r.ID) === String(id));
+
+                 if (registroSeleccionado) {
+                     filaClickeada.classList.add('fila-cargando');
+                     google.script.run
+                         .withSuccessHandler(registroCompleto => {
+                             filaClickeada.classList.remove('fila-cargando');
+                             if (registroCompleto && !registroCompleto.error) {
+                                 App.methods.cargarRegistroParaEdicion(registroCompleto);
+                             }
+                         })
+                         .withFailureHandler(error => {
+                             filaClickeada.classList.remove('fila-cargando');
+                             App.handlers.onFailure(error);
+                         })
+                         .obtenerDatosCompletosPorId(registroSeleccionado.ID);
+                 }
+            });
+        });
+        contenedor.querySelector('#buscador-incompletos').addEventListener('keyup', () => {
+            App.util.filtrarTabla('buscador-incompletos', 'tabla-incompletos');
+        });
+    },
+
+    onTodosSuccess: function(registros) {
+        App.methods.desbloquearPantalla(); // <--- DESBLOQUEO AL TERMINAR
+        const contenedor = App.ui.vistas.todos;
+
+        if (registros.error) {
+            contenedor.innerHTML = `<div class="alert alert-danger">Error: ${registros.message}</div>`;
+            return;
+        }
+        App.state.todosLosIngresos = registros; 
+        let tablaHtml = `
+            <h2><i class="fas fa-list-ul"></i> Todos los Ingresos</h2>
+            <div class="form-group mt-3">
+                <input type="text" class="form-control" id="buscador-todos" placeholder="Buscar por Nombre o RUT...">
+            </div>
+            <div class="table-responsive mt-3">
+                <table class="table table-hover" id="tabla-todos">
+                    <thead class="thead-light">
+                        <tr>
+                            <th>ID</th>
+                            <th>Nombre Completo</th>
+                            <th class="col-rut">RUT</th>
+                            <th>Calidad Contractual</th>
+                            <th>Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody>`;
+        registros.slice().reverse().forEach(reg => {
+            const estadoInfo = reg['ESTADO DE INFORMACION'] === 'INFORMACION COMPLETA' 
+                ? '<span class="badge badge-success">Completo</span>' 
+                : '<span class="badge badge-warning">Incompleto</span>';
+            tablaHtml += `
+                <tr class="fila-clickable" data-id="${reg.ID}">
+                    <td><strong>${reg.ID}</strong></td>
+                    <td>${reg['NOMBRE COMPLETO']}</td>
+                    <td class="col-rut">${reg.RUT}</td>
+                    <td>${reg['CALIDAD CONTRACTUAL']}</td>
+                    <td>${estadoInfo}</td>
+                </tr>`;
+        });
+
+            tablaHtml += `</tbody></table></div>`;
+            contenedor.innerHTML = tablaHtml;
+
+            contenedor.querySelector('#buscador-todos').addEventListener('keyup', () => {
+                App.util.filtrarTabla('buscador-todos', 'tabla-todos');
+            });
+
+            contenedor.querySelectorAll('.fila-clickable').forEach(fila => {
+                fila.addEventListener('click', (e) => {
+                    const id = e.currentTarget.dataset.id;
+                    App.methods.mostrarDetallesRegistro(id);
+                });
+            });
+    },
+
+    onCorreosSuccess: function(empleados) {
+        App.methods.desbloquearPantalla(); // <--- DESBLOQUEO AL TERMINAR
+        const contenedor = App.ui.vistas.correos;
+
+        if (empleados.error) {
+            contenedor.innerHTML = `<div class="alert alert-danger">Error: ${empleados.message}</div>`;
+            return;
+        }
+
+        let contenidoHtml = `<h2><i class="fas fa-envelope-open-text"></i> Enviar Correos de Bienvenida</h2>`;
+
+        if (empleados.length === 0) {
+            contenidoHtml += '<div class="alert alert-success mt-3">No hay empleados nuevos pendientes de recibir el correo de bienvenida.</div>';
+            contenedor.innerHTML = contenidoHtml;
+            return;
+        }
+
+        contenidoHtml += `
+            <p>Seleccione los empleados a quienes desea enviar el correo de bienvenida.</p>
+            <div class="table-responsive mt-3">
+                <table class="table table-hover">
+                    <thead class="thead-light">
+                        <tr>
+                            <th><input type="checkbox" id="seleccionar-todos-correos"></th>
+                            <th>ID</th>
+                            <th>Nombre Completo</th>
+                            <th>Calidad Contractual</th>
+                        </tr>
+                    </thead>
+                    <tbody>`;
+
+        empleados.forEach(emp => {
+            contenidoHtml += `<tr>
+                <td><input type="checkbox" class="checkbox-correo" value="${emp.id}"></td>
+                <td><strong>${emp.id}</strong></td>
+                <td>${emp.nombre}</td>
+                <td>${emp.calidad}</td>
+            </tr>`;
+        });
+
+        contenidoHtml += `</tbody></table></div>
+            <div id="acciones-correo-container" class="mt-3 text-right">
+                <div id="correo-status-message" class="d-inline-block mr-3"></div>
+                <button type="button" class="btn btn-primary" id="btn-enviar-correos"><i class="fas fa-paper-plane"></i> Enviar Seleccionados</button>
+            </div>`;
+
+        contenedor.innerHTML = contenidoHtml;
+
+        contenedor.querySelector('#seleccionar-todos-correos').addEventListener('change', (e) => {
+            contenedor.querySelectorAll('.checkbox-correo').forEach(chk => { chk.checked = e.target.checked; });
+        });
+
+        contenedor.querySelector('#btn-enviar-correos').addEventListener('click', () => {
+            const idsSeleccionados = [];
+            contenedor.querySelectorAll('.checkbox-correo:checked').forEach(chk => idsSeleccionados.push(chk.value));
+
+            if (idsSeleccionados.length === 0) {
+                alert('Por favor, seleccione al menos un empleado.');
+                return;
+            }
+
+            const btn = contenedor.querySelector('#btn-enviar-correos');
+            const statusMsg = contenedor.querySelector('#correo-status-message');
+            btn.disabled = true;
+            statusMsg.innerHTML = '<span class="text-primary">Enviando correos...</span>';
+
+            google.script.run
+                .withSuccessHandler(response => {
+                    btn.disabled = false;
+                    statusMsg.innerHTML = '';
+                    alert(response.message);
+                    App.methods.cargarVistaCorreos(); 
+                })
+                .withFailureHandler(App.handlers.onFailure)
+                .enviarCorreosDeBienvenida(idsSeleccionados);
+        });
+    },
+
+    onObtenerListosSuccess: function(resultados) {
+        App.methods.desbloquearPantalla(); // <--- DESBLOQUEO AL TERMINAR
+        const tipo = App.methods.traspaso.tipoActual;
+        
+        // Contenedores
+        const contenedorLista = (tipo === 'contratos') ? document.getElementById('lista-traspaso-contratos') : document.getElementById('lista-traspaso-nomina');
+        const contenedorAcciones = (tipo === 'contratos') ? document.getElementById('acciones-traspaso-contratos') : document.getElementById('acciones-traspaso-nomina');
+
+        // Inputs de Filtro
+        const inputTexto = document.getElementById(`filtro-texto-${tipo}`);
+        const selectCalidad = document.getElementById(`filtro-calidad-${tipo}`);
+        const selectAsignado = document.getElementById(`filtro-asignado-${tipo}`);
+
+        if (resultados.error) {
+            contenedorLista.innerHTML = `<div class="alert alert-danger">Error: ${resultados.message}</div>`;
+            return;
+        }
+        
+        // Guardamos los datos en estado para poder filtrar en cliente
+        App.state.empleadosParaTraspaso = resultados;
+
+        // Si no hay datos, renderizamos mensaje
+        if (resultados.length === 0) {
+            contenedorLista.innerHTML = '<div class="alert alert-info">No hay registros pendientes para este traspaso.</div>';
+            contenedorAcciones.innerHTML = '';
+            // Limpiamos filtros para evitar confusión
+            selectCalidad.innerHTML = '<option value="">TODAS</option>';
+            selectAsignado.innerHTML = '<option value="">TODOS</option>';
+            return;
+        }
+
+        // --- POBLAR SELECTORES DE FILTRO ---
+        const calidadesUnicas = [...new Set(resultados.map(item => item.calidad).filter(Boolean))].sort();
+        const asignadosUnicos = [...new Set(resultados.map(item => item.asignadoA ? item.asignadoA.toUpperCase() : null).filter(Boolean))].sort();
+
+        App.util.poblarSelect(selectCalidad, calidadesUnicas, "");
+        App.util.poblarSelect(selectAsignado, asignadosUnicos, "");
+        // Sobreescribimos la opción por defecto para que sea más clara
+        selectCalidad.options[0].text = "TODAS";
+        selectAsignado.options[0].text = "TODOS";
+
+        // --- LISTENERS DE FILTRO ---
+        // (Removemos listeners anteriores si existen clonando el nodo, para evitar duplicados al recargar vista)
+        const replaceElement = (el) => {
+            const newEl = el.cloneNode(true);
+            el.parentNode.replaceChild(newEl, el);
+            return newEl;
+        };
+
+        const newInputTexto = replaceElement(inputTexto);
+        const newSelectCalidad = replaceElement(selectCalidad);
+        const newSelectAsignado = replaceElement(selectAsignado);
+
+        const aplicarFiltro = () => App.methods.traspaso.filtrarYRenderizarTraspasos(tipo);
+
+        newInputTexto.addEventListener('keyup', aplicarFiltro);
+        newSelectCalidad.addEventListener('change', aplicarFiltro);
+        newSelectAsignado.addEventListener('change', aplicarFiltro);
+
+        // --- RENDERIZADO INICIAL ---
+        App.methods.traspaso.renderizarTablaTraspasos(resultados, tipo);
+    },
+
+    onFormChange: function(e) {
+        const el = e.target;
+        const id = el.id;
+        
+        switch (id) {
+            case 'FECHA DE NACIMIENTO':
+                App.methods.finanzas.calcularEdad();
+                break;
+            case 'FECHA DE REGISTRO':
+                App.methods.actualizarMes();
+                break;
+            case 'FECHA INGRESO':
+                App.methods.finanzas.calcularMontoProporcional();
+                break;
+            case 'PERFIL':
+                App.methods.actualizarDescripcionPerfil();
+                break;
+            case 'GRADO':
+                App.methods.actualizarEscalafones();
+                App.methods.finanzas.calcularSueldo();
+                break;
+            case 'ESCALAFON':
+                App.methods.finanzas.calcularSueldo();
+                break;
+            case 'PUEBLOS ORIGINARIOS':
+                App.util.gestionarCampoCondicional(el, App.ui.detallePuebloContainer, 'SI');
+                break;
+            case 'DISCAPACIDAD':
+                App.util.gestionarCampoCondicional(el, App.ui.detalleDiscapacidadContainer, 'SI', 'flex');
+                break;
+            case 'DIRECCION':
+            case 'DEPARTAMENTO':
+            case 'OFICINA':
+            case 'AREA DE GESTION':
+                if (id === 'DIRECCION') {
+                    $(App.ui.departamentoSelect).val("-").trigger('change.select2');
+                    $(App.ui.oficinaSelect).val("-").trigger('change.select2');
+                }
+                if (id === 'DEPARTAMENTO') {
+                    $(App.ui.oficinaSelect).val("-").trigger('change.select2');
+                }
+                App.methods.actualizarCentroCosto();
+                App.methods.actualizarAsignadoA();
+                break;
+        }
+
+        if (id.startsWith('periodo-funcion-') || id === 'periodo-prestadores') {
+            App.methods.gestionarPeriodoFuncion(el);
+        }
+    },
+
+    onFormInput: function(e) {
+        const el = e.target;
+        const id = el.id;
+        switch (id) {
+            case 'MONTO BRUTO':
+                App.methods.finanzas.calcularMontoProporcional();
+                break;
+        }
+    }
+};
+</script>
